@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<body>
+
+    <h2>PDF via System teilen</h2>
+    
+    <button id="shareBtn">PDF teilen</button>
+
+    <script>
+        const shareBtn = document.querySelector('#shareBtn');
+
+        shareBtn.addEventListener('click', async () => {
+            const pdfUrl = 'deine-datei.pdf'; // Pfad zu deiner PDF
+            const fileName = 'Dokument.pdf';
+
+            try {
+                // 1. PDF herunterladen, um sie als Datei-Objekt zu haben
+                const response = await fetch(pdfUrl);
+                const blob = await response.blob();
+                const file = new File([blob], fileName, { type: 'application/pdf' });
+
+                // 2. Prüfen, ob das System das Teilen von Dateien unterstützt
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Mein Dokument',
+                        text: 'Hier ist die gewünschte PDF-Datei.'
+                    });
+                    console.log('Erfolgreich geteilt');
+                } else {
+                    alert('Dein Browser unterstützt das Teilen von Dateien leider nicht.');
+                }
+            } catch (error) {
+                console.error('Fehler beim Teilen:', error);
+            }
+        });
+    </script>
+
+</body>
+</html>
