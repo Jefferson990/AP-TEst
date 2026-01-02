@@ -124,6 +124,11 @@
         /* --- PRINT STYLES (EXAKT 2 SEITEN A4 mit GRAFIKEN) --- */
         
         
+
+    /* --- Canvas Print Snapshot (macht Stylus garantiert sichtbar) --- */
+    img.print-canvas-snapshot { display: none; }
+
+
 @media print {
     @page { size: A4 landscape; margin: 0.5cm; }
 
@@ -133,6 +138,26 @@
         print-color-adjust: exact !important;
         color-adjust: exact !important;
     }
+    /* Snapshots statt Canvas drucken (Safari/Edge/Chromium zuverlässig) */
+    canvas.canvas-layer,
+    canvas.drawing-canvas {
+        /* NICHT display:none (würde toDataURL/Render killen). */
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+    img.print-canvas-snapshot{
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        pointer-events: none !important;
+        z-index: 25 !important;
+    }
+
 
     
 
@@ -667,7 +692,8 @@ html, body {
             const penValid = drawnStrokes['skip_reason']?.length > 0;
             const isValid = isPen ? penValid : keyboardValid;
             const handleConfirm = () => { const reasonData = isPen ? 'HANDWRITING (Grund per Stift erfasst)' : reason; if (isValid) { onConfirm(reasonData); } };
-            const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, ['skip_reason']: [] })); };
+            const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); try { window.__scheduleCanvasSnapshot && window.__scheduleCanvasSnapshot(canvas); } catch(e) {}
+                setDrawnStrokes(prev => ({ ...prev, ['skip_reason']: [] })); };
             useEffect(() => { if (!isOpen || !isPen || !canvasRef.current || !drawnStrokes['skip_reason']) return; redrawCanvas(canvasRef.current, drawnStrokes['skip_reason'], 1, 'skip_reason'); }, [isOpen, isPen, drawnStrokes['skip_reason']]);
             return (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.AlertCircle} size={24} className="text-amber-600"/> Grund für Überspringen</h3><p className="text-sm text-slate-600 mb-4">Bitte geben Sie kurz an, warum die Situation-Analyse übersprungen wird (min. {MIN_LENGTH} Buchstaben/Stift-Eintrag).</p><div className="relative w-full h-32 border border-slate-300 rounded-lg bg-slate-50 overflow-hidden"><div className="absolute top-2 right-2 z-20 flex gap-1"><button onClick={() => setReasonMode(p => p === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={reasonMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}><Icon d={reasonMode === 'keyboard' ? ICONS.Pen : ICONS.Keyboard} size={16}/></button>{isPen && drawnStrokes['skip_reason']?.length > 0 && (<button onClick={clearCanvas} className="p-1 hover:bg-slate-200 rounded text-slate-400" title="Löschen"><Icon d={ICONS.Trash} size={16}/></button>)}</div>{isPen ? (<canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, canvasRef, 'skip_reason')} onPointerMove={(e) => draw(e, canvasRef, 'skip_reason')} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)}/>) : (<textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Grund hier eingeben..." className="w-full h-full p-4 text-base font-medium text-slate-700 bg-transparent resize-none focus:ring-0 focus:outline-none pr-12" autoFocus maxLength={100}/>)}</div><div className="flex justify-between items-center mt-4"><span className={`text-xs font-bold transition-colors ${isValid ? 'text-green-600' : 'text-red-500'}`}>{isValid ? 'Anforderung erfüllt.' : `Mind. ${MIN_LENGTH} Buchstaben erforderlich.`}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleConfirm} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isValid ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!isValid}>Bestätigen & Springen <Icon d={ICONS.ArrowRight} size={16}/></button></div></div></div></div>);
         };
@@ -907,8 +933,14 @@ html, body {
             const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
             const startDrawing = useCallback((e, ref, key) => { e.preventDefault(); const canvas = ref?.current; if(!canvas) return; const pointerType = e.pointerType; const isPenInput = pointerType === 'pen'; const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen'; const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen'); 
             const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
-            const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
-            const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
+            const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke();
+                ctx.restore();
+                try { window.__scheduleCanvasSnapshot && window.__scheduleCanvasSnapshot(canvas); } catch(e) {}
+            }, []);
+const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d');
+                try { window.__scheduleCanvasSnapshot && window.__scheduleCanvasSnapshot(canvas); } catch(e) {}
+                ctx.restore();
+            }, [setDrawnStrokes]);
 
             const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
             const toggleTech = (val) => setShowTechModal(val);
@@ -1011,12 +1043,104 @@ html, body {
                 if (off) off.insertBefore(mk('Ihr Persönliches Angebot', 'Angebot'), off.firstChild);
             };
 
-            window.addEventListener('beforeprint', ensurePrintHeaders);
-            window.addEventListener('afterprint', () => {
-                document.querySelectorAll('.print-page-header').forEach(el => el.remove());
+            
+            
+            // --- PRINT SNAPSHOTS (dauerhaft + live update, damit Stylus auf Seite 1 sicher gedruckt wird) ---
+            const __snapshotState = { pending: new WeakSet() };
+
+            const ensureCanvasSnapshotEl = (canvas) => {
+                try {
+                    const parent = canvas?.parentElement;
+                    if (!parent) return null;
+
+                    // Parent muss relative sein, damit inset-0 funktioniert
+                    const ps = getComputedStyle(parent).position;
+                    if (ps === 'static') parent.style.position = 'relative';
+
+                    // Unique key pro Canvas
+                    if (!canvas.dataset.snapId) {
+                        canvas.dataset.snapId = 'snap_' + Math.random().toString(36).slice(2, 9);
+                    }
+
+                    let img = parent.querySelector(`img.print-canvas-snapshot[data-snap-id="${canvas.dataset.snapId}"]`);
+                    if (!img) {
+                        img = document.createElement('img');
+                        img.className = 'print-canvas-snapshot';
+                        img.setAttribute('data-snap-id', canvas.dataset.snapId);
+                        img.alt = 'Canvas Snapshot';
+                        // unter Canvas legen? nein: wir blenden Canvas im Print per visibility aus, Snapshot bleibt sichtbar
+                        parent.insertBefore(img, canvas);
+                    }
+                    return img;
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const updateCanvasSnapshot = (canvas) => {
+                try {
+                    if (!canvas) return;
+                    const img = ensureCanvasSnapshotEl(canvas);
+                    if (!img) return;
+
+                    // Manche Browser brauchen kurz ein stabiles Layout
+                    const url = canvas.toDataURL('image/png');
+                    // Nur setzen, wenn etwas da ist (vermeidet broken-image)
+                    if (url && url.startsWith('data:image')) img.src = url;
+                } catch (e) {
+                    // ignore
+                }
+            };
+
+            const scheduleCanvasSnapshot = (canvas) => {
+                if (!canvas) return;
+                if (__snapshotState.pending.has(canvas)) return;
+                __snapshotState.pending.add(canvas);
+                requestAnimationFrame(() => {
+                    __snapshotState.pending.delete(canvas);
+                    updateCanvasSnapshot(canvas);
+                });
+            };
+
+            // Global verfügbar (wird in den Drawing-Funktionen getriggert)
+            window.__scheduleCanvasSnapshot = scheduleCanvasSnapshot;
+
+            const scanAllCanvasesForSnapshots = () => {
+                document.querySelectorAll('canvas.canvas-layer, canvas.drawing-canvas').forEach(cv => {
+                    ensureCanvasSnapshotEl(cv);
+                    // initial snapshot, falls schon Inhalt vorhanden
+                    scheduleCanvasSnapshot(cv);
+                });
+            };
+
+            const observeCanvasesForSnapshots = () => {
+                scanAllCanvasesForSnapshots();
+                const mo = new MutationObserver(() => scanAllCanvasesForSnapshots());
+                mo.observe(document.body, { childList: true, subtree: true });
+            };
+
+            // nach erstem Render starten
+            requestAnimationFrame(() => observeCanvasesForSnapshots());
+
+window.addEventListener('beforeprint', () => {
+                ensurePrintHeaders();
+
+                // Snapshot-Images vor dem Druck aktualisieren (für Safari/Edge/Chromium stabil)
+                requestAnimationFrame(() => {
+                    document.querySelectorAll('canvas.canvas-layer, canvas.drawing-canvas').forEach(cv => {
+                        try { window.__scheduleCanvasSnapshot && window.__scheduleCanvasSnapshot(cv); } catch(e) {}
+                    });
+                });
             });
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+            });
+            });
+
+            window.addEventListener('afterprint', () => {
+                document.querySelectorAll('.print-page-header').forEach(el => el.remove());
+                // Snapshots bleiben im DOM (werden live aktualisiert), nichts zu cleanupen.
+            });
+const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
