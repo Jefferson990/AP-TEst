@@ -117,155 +117,278 @@
             overflow: hidden; touch-action: none;
         }
         
+
+        /* Print-Header wird nur zur Druckzeit per JS eingefügt */
+        .print-page-header{ display:none; }
+
         /* --- PRINT STYLES (EXAKT 2 SEITEN A4 mit GRAFIKEN) --- */
         
-        @media print {
-            @page {
-                size: A4 landscape; 
-                margin: 0.5cm;
-            }
-            
-            /* ZWINGEND: Hintergrundgrafiken & Farben drucken */
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-            }
-            
-            html, body {
-                width: 100%;
-                height: auto !important;
-                overflow: visible !important;
-                background-color: #ffffff !important; /* Weißer Papierhintergrund */
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            
-            /* UI Elemente ausblenden */
-            header, 
-            .footer-bar, 
-            .fixed.inset-0.z-50, /* Modals */
-            aside,
-            button,
-            .fixed.inset-0.z-\[60\] /* Higher z-index modals */ {
-                display: none !important;
-            }
+        
+@media print {
+    @page { size: A4 landscape; margin: 0.5cm; }
 
-            #root {
-                display: block !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
-            }
+    /* Farben + Hintergrundgrafiken drucken */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
 
-            /* --- SEITE 1: SITUATION --- */
-            .situation-view-wrapper {
-                display: block !important; /* Immer anzeigen */
-                visibility: visible !important;
-                opacity: 1 !important;
-                position: relative !important;
-                width: 100% !important;
-                height: auto !important;
-                min-height: 90vh; /* Seite füllen */
-                overflow: visible !important;
-                
-                /* Skalierung für A4 */
-                zoom: 0.75; 
-                
-                /* Zwingender Umbruch NACH Seite 1 */
-                break-after: page !important;
-                page-break-after: always !important;
-                
-                margin: 0 !important;
-                padding: 0 !important;
-                background-color: transparent !important;
-            }
+    html, body {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+    }
 
-            /* Layout Anpassung Situation im Druck: Sidebar ist weg, also Full Width */
-            .situation-view-wrapper > div {
-                padding: 0 !important;
-                border: none !important;
-                box-shadow: none !important;
-                width: 100% !important;
-            }
-            
-            /* Hintergrundfarbe der Karten erzwingen */
-            .bg-white {
-                background-color: #ffffff !important;
-            }
-            .bg-slate-100 {
-                background-color: #f1f5f9 !important;
-            }
-            .bg-blue-50 {
-                background-color: #eff6ff !important;
-            }
+    /* Globalen Header im Print ausblenden (wir erzeugen pro Seite einen Print-Header) */
+    header { display: none !important; }
 
-            /* --- SEITE 2: ANGEBOT --- */
-            .print-offer-view {
-                display: block !important; /* Immer anzeigen */
-                visibility: visible !important;
-                opacity: 1 !important;
-                position: relative !important;
-                width: 100% !important;
-                height: auto !important;
-                min-height: 90vh;
-                overflow: visible !important;
-                
-                /* Skalierung für A4 */
-                zoom: 0.75;
-                
-                /* Zwingender Umbruch VOR Seite 2 (Sicherheit) */
-                break-before: page !important;
-                page-break-before: always !important;
-                
-                margin: 0 !important;
-                padding: 0 !important;
-                background-color: transparent !important;
-            }
-            
-            /* Angebots-Container Anpassung */
-            .offer-canvas-container {
-                box-shadow: none !important;
-                border: 1px solid #cbd5e1 !important;
-                min-height: 350px !important; 
-                margin-bottom: 20px !important;
-                background: white !important;
-            }
+    .print-page-header{ display:flex !important; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; background:#ffffff !important; border:1px solid #e2e8f0; border-radius:14px; margin:0 0 10px 0; }
+    .print-page-header .title{ font-size:28px; font-weight:900; color:#0b1e42; letter-spacing:-0.02em; }
+    .print-page-header .badge{ background:#2563eb; color:#ffffff; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:800; border:1px solid #1d4ed8; }
 
-            /* Verhindern von Umbrüchen IN den Elementen */
-            .offer-canvas-container, 
-            .bg-white, 
-            .grid,
-            .flex-1 {
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
+    /* Interaktive UI/Overlays ausblenden */
+    .situation-view-wrapper button,
+    .print-offer-view button { display: none !important; }
 
-            /* Visuelle Korrekturen */
-            .canvas-lines {
-                background-image: repeating-linear-gradient(to bottom, transparent, transparent 19px, #e2e8f0 20px) !important;
-            }
-            
-            .drawing-canvas, .canvas-image {
-                opacity: 1 !important;
-                display: block !important;
-                visibility: visible !important;
-            }
-            
-            .offer-canvas-container textarea, input, select {
-                color: #000000 !important;
-                -webkit-text-fill-color: #000000 !important;
-                opacity: 1 !important;
-                display: block !important;
-                background: transparent !important;
-                box-shadow: none !important;
-                border: none !important;
-            }
-            
-            .signature-canvas-container {
-                background-image: linear-gradient(to bottom, transparent 90%, #6b7280 91%, transparent 92%) !important;
-            }
-        }
+    .footer-bar,
+    .fixed.inset-0.z-50,
+    .fixed.inset-0.z-\[60\],
+    input[type="file"] {
+        display: none !important;
+    }
+
+    #root {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: transparent !important;
+    }
+
+    /* -------- Seite 1: Situation (voll sichtbar) -------- */
+    .situation-view-wrapper {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+
+        /* kein Screen-Zoom/Scale im Druck */
+        zoom: 1 !important;
+
+        break-after: page !important;
+        page-break-after: always !important;
+
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    /* Print-Header soll volle Breite oben einnehmen */
+    .situation-view-wrapper > .print-page-header {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        order: 0 !important;
+    }
+
+    /* Main (Links+Mitte) = 80% */
+    .situation-view-wrapper > div.flex-1.flex.items-stretch {
+        flex: 0 0 80% !important;
+        max-width: 80% !important;
+        width: 80% !important;
+        order: 1 !important;
+    }
+
+    /* Rechte Sidebar = 20% (im Print sichtbar) */
+    .situation-view-wrapper > aside {
+        display: flex !important;
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+        width: 20% !important;
+        min-width: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        order: 2 !important;
+    }
+
+
+    /* In Print darf nichts "viewport-locked" sein */
+    .situation-view-wrapper .overflow-hidden,
+    .situation-view-wrapper .h-full,
+    .situation-view-wrapper .min-h-0 {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    /* Die 10 Zeilen sollen sauber auf eine Seite passen */
+    .situation-view-wrapper .flex.w-full.flex-1.min-h-0.relative {
+        flex: none !important;
+        height: 62px !important;
+        min-height: 62px !important;
+    }
+
+    /* Canvas-Overlay in Print sichtbar + volle Höhe */
+    .situation-view-wrapper canvas.drawing-canvas {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Karten-Hintergründe erzwingen */
+    .bg-white { background-color: #ffffff !important; }
+    .bg-slate-100 { background-color: #f1f5f9 !important; }
+    .bg-blue-50 { background-color: #eff6ff !important; }
+
+    /* -------- Seite 2: Angebot (voll sichtbar) -------- */
+    .print-offer-view {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+
+        zoom: 0.80;
+
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    .print-offer-view .overflow-hidden,
+    .print-offer-view .h-full,
+    .print-offer-view .min-h-0 {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .offer-canvas-container {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        background: #ffffff !important;
+    }
+
+    /* Keine Umbrüche mitten im Offer-Block */
+    .offer-canvas-container {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+
+    .canvas-lines {
+        background-image: repeating-linear-gradient(to bottom, transparent, transparent 19px, #e2e8f0 20px) !important;
+    }
+
+    .drawing-canvas, .canvas-image {
+        opacity: 1 !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+
+
+
+    /* Print-Compact: Angebot + Kosten müssen auf 1 Seite passen (ohne Screen zu ändern) */
+    .print-offer-view .offer-canvas-container {
+        min-height: 260px !important;
+        margin-bottom: 12px !important;
+    }
+    .print-offer-view .print-page-header {
+        margin-bottom: 8px !important;
+        padding: 8px 12px !important;
+    }
+    .print-offer-view .print-page-header .title {
+        font-size: 24px !important;
+    }
+    /* Weniger vertikaler Abstand in Karten */
+    .print-offer-view .gap-4 {
+        gap: 10px !important;
+    }
+
+    /* Inputs sollen lesbar bleiben */
+    textarea, input, select {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+    }
+
+    /* ---- PRINT: Seite 1 Breitensteuerung (Links/Mitte/Rechts = 30/50/20) ---- */
+    /* Da Main (Links+Mitte) im Print 80% hat, müssen die Zellbreiten 37.5% / 62.5% sein */
+    .situation-view-wrapper [class*="w-[30%]"]{
+        width: 37.5% !important;
+        flex: 0 0 37.5% !important;
+        max-width: 37.5% !important;
+    }
+    .situation-view-wrapper [class*="w-[70%]"]{
+        width: 62.5% !important;
+        flex: 0 0 62.5% !important;
+        max-width: 62.5% !important;
+    }
+    /* Inline-Overlay (left:30%/width:70%) für Stylus im Print überschreiben */
+    .situation-view-wrapper .flex.w-full.flex-1.min-h-0.relative .absolute.inset-0.z-20{
+        left: 37.5% !important;
+        width: 62.5% !important;
+    }
+    /* Scroll-Container in Sidebar im Print auflösen */
+    .situation-view-wrapper .overflow-y-auto{
+        overflow: visible !important;
+    }
+
+    /* ---- PRINT: Seite 2 Layout-Optimierung (Angebote größer, Kostenblock minimal) ---- */
+    /* 3 Angebots-Canvas deutlich höher (ca. doppelt) */
+    .print-offer-view .offer-canvas-container{
+        min-height: 600px !important; /* ~2x gegenüber 260px */
+        margin-bottom: 10px !important;
+    }
+
+    /* Damit Seite 2 trotzdem sauber auf 1 Seite passt: Kostenblock kompakt */
+    .print-offer-view .cost-overview-print{
+        padding: 10px 12px !important;
+        box-shadow: none !important;
+    }
+    .print-offer-view .cost-overview-print h3{
+        margin-bottom: 6px !important;
+        font-size: 16px !important;
+    }
+    /* Inputs im Kostenblock flacher */
+    .print-offer-view .cost-overview-print input,
+    .print-offer-view .cost-overview-print textarea,
+    .print-offer-view .cost-overview-print select{
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        font-size: 12px !important;
+    }
+
+    /* Disclaimer/Infobalken unten: so klein wie möglich, aber noch lesbar */
+    .print-offer-view .cost-overview-print .text-\[10px\],
+    .print-offer-view .cost-overview-print .text-xs{
+        font-size: 7px !important;
+        line-height: 1.1 !important;
+    }
+    .print-offer-view .cost-overview-print p{
+        margin-top: 4px !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Optional: minimal mehr Platz für Angebote durch leichtes Print-Zoom nur auf Seite 2 */
+    .print-offer-view{ zoom: 0.78 !important; }
+
+}
+
     </style>
 </head>
 <body>
@@ -758,8 +881,8 @@
 
             const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
             const startDrawing = useCallback((e, ref, key) => { e.preventDefault(); const canvas = ref?.current; if(!canvas) return; const pointerType = e.pointerType; const isPenInput = pointerType === 'pen'; const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen'; const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen'); 
-            const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = normalizedBaseLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
-            const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
+            const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
+            const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
             const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
 
             const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
@@ -793,8 +916,8 @@
                     <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={() => setShowAdmin(true)} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="Fragen & Links bearbeiten (Admin)"><Icon d={ICONS.Lock} size={18}/></button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-700 leading-tight self-start mt-2">{view === 'situation' ? 'v16.7 Analyse' : 'v16.7 Angebot'}</span></header>
 
                     <div className={`flex-1 w-full overflow-hidden relative ${view === 'situation' ? 'flex' : 'hidden'} situation-view-wrapper`}>
-                        <div className="flex-1 flex items-stretch p-4 gap-0 overflow-hidden w-full">
-                            <div className="flex-1 flex bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative isolate flex flex-col h-full w-full">
+                        <div className="flex-1 flex items-stretch p-4 gap-0 overflow-hidden w-full min-w-0">
+                            <div className="flex-1 flex bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative isolate flex flex-col md:flex-row h-full w-full min-w-0">
                                 <div className="flex-1 relative w-full h-full flex flex-col">
                                     <div className="flex-1 flex flex-col h-full w-full">
                                            {SITUATION_ITEMS.map((item) => (<div key={item.id} className="flex w-full flex-1 min-h-0 relative gap-0 mb-0 border-b border-slate-200 last:border-b-0"><div className={`w-[30%] shrink-0 flex items-center px-4 gap-4 transition-colors border-r border-slate-200 ${activeCategory === item.id ? 'bg-blue-50 text-blue-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><button onClick={(e) => { e.stopPropagation(); setActiveCategory(item.id); setQuestionIndex(0); }} className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-600 relative z-30" title="Fragen öffnen"><Icon d={item.icon} size={32} /></button><span className="text-xl md:text-2xl font-black truncate tracking-tight select-none pointer-events-none">{getStaticLabel(`${item.id}_Label`)}</span></div><div className="flex-1 bg-white relative group flex items-center w-[70%]"><input type="text" value={getDisplayText(item.id)} onChange={(e) => handleTextChange(item.id, e.target.value)} className={`${getInputClasses()} ${isMainInputReadOnly ? 'text-slate-700/0' : 'text-slate-700 relative z-30'}`} placeholder={isMainInputReadOnly ? "Skizze aktiv..." : "Eingabe..."} readOnly={isMainInputReadOnly}/></div></div>))}
@@ -804,7 +927,7 @@
                             </div>
                         </div>
 
-                        <aside className="w-[300px] bg-[#f0f6ff] p-3 shrink-0 hidden lg:flex flex-col border-l border-slate-200 z-10 h-full overflow-hidden">
+                        <aside className="w-[280px] xl:w-[300px] min-w-[280px] bg-[#f0f6ff] p-3 shrink-0 hidden md:flex flex-col border-l border-slate-200 z-10 h-full overflow-hidden">
                             <div className="flex-1 flex flex-col min-h-0 gap-2 overflow-y-auto custom-scrollbar">
                                 <SectionCard title="Stammdaten" className="shrink-0 flex flex-col"><div className="grid grid-cols-2 gap-2 mb-2 shrink-0"><div className="relative h-8"><select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${customerType === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Kundentyp *</option><option value="Neukunde">Neukunde</option><option value="Bestandskunde">Bestandskunde</option></select></div><div className="relative h-8"><select value={segment} onChange={(e) => setSegment(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${segment === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Segment *</option><option value="Privatkunde">Privatkunde</option><option value="Geschäftskunden">Geschäftskunden</option><option value="Vertragsverlängerung">Vertragsverlängerung</option><option value="Junge Leute">Junge Leute</option><option value="Bestes Alter">Bestes Alter</option></select></div></div><div className="relative w-full h-16 border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center shrink-0"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20"><button onClick={() => setEmailMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{emailMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button></div>{emailMode === 'keyboard' ? (<input type="text" value={emailText} onChange={(e) => setEmailText(e.target.value)} placeholder="E-Mail Adresse" className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-10" />) : (<><canvas ref={emailCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onPointerDown={(e) => startDrawing(e, emailCanvasRef, 'email')} onPointerMove={(e) => draw(e, emailCanvasRef, 'email')} onPointerUp={(e) => stopDrawing(e, emailCanvasRef)} onPointerLeave={(e) => stopDrawing(e, emailCanvasRef)} /><button onClick={() => clearCanvas(emailCanvasRef, 'email')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div></SectionCard>
                                 <SectionCard title="Technische Situation" className="shrink-0 flex flex-col"><div className="relative mb-2 w-full h-8 shrink-0">{!isCustomProvider ? (<select value={providerSelect} onChange={(e) => { if (e.target.value === 'Sonstiges') { setIsCustomProvider(true); setProviderSelect('Sonstiges'); } else { setProviderSelect(e.target.value); setIsCustomProvider(false); } }} className={`w-full h-full bg-slate-50 border rounded-md pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${providerSelect === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Derzeitiger DSL-Anbieter *</option><option value="Telekom">Telekom</option><option value="1&1">1&1</option><option value="Vodafone">Vodafone</option><option value="O2">O2</option><option value="Sonstiges">Sonstiges / Eingabe</option></select>) : (<div className="relative w-full h-full border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center border-l-4 border-l-green-500"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex gap-1"><button onClick={() => setProviderMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{providerMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button><button onClick={() => { setIsCustomProvider(false); setProviderSelect(''); setCustomProvider(''); }} className="p-1 hover:bg-slate-100 rounded text-slate-400" title="Zurück zur Liste"><Icon d={ICONS.List} size={10}/></button></div>{providerMode === 'keyboard' ? (<input type="text" value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Anbieter..." className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-16" autoFocus />) : (<><canvas ref={providerCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onPointerDown={(e) => startDrawing(e, providerCanvasRef, 'provider')} onPointerMove={(e) => draw(e, providerCanvasRef, 'provider')} onPointerUp={(e) => stopDrawing(e, providerCanvasRef)} onPointerLeave={(e) => stopDrawing(e, providerCanvasRef)} /><button onClick={() => clearCanvas(providerCanvasRef, 'provider')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div>)}</div><button onClick={() => setShowWlanModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors shrink-0"><Icon d={ICONS.Wifi} size={14} className="text-slate-500" /> WLAN-Planer öffnen</button></SectionCard>
@@ -821,7 +944,7 @@
                                 {[{ key: 'offer1', icon: ICONS.Smartphone, labelKey: 'Offer1Title', ref: offerCanvasRef1, scaleRef: scaleRef1 }, { key: 'offer2', icon: ICONS.Users, labelKey: 'Offer2Title', ref: offerCanvasRef2, scaleRef: scaleRef2 }, { key: 'offer3', icon: ICONS.Router, labelKey: 'Offer3Title', ref: offerCanvasRef3, scaleRef: scaleRef3 }].map(({ key, icon, labelKey, ref, scaleRef }) => (<OfferCanvas key={key} canvasRef={ref} icon={icon} label={getStaticLabel(labelKey)} statusKey={key} status={canvasStatus[key]} setStatus={setCanvasStatus} inputMode={inputMode} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} textValue={getDisplayText(key)} handleTextChange={handleTextChange} textStyle={textStyle} textSize={textSize} imageTransform={imageTransform[key]} onUpdateImageTransform={handleUpdateImageTransform} drawnStrokes={drawnStrokes[key]} setDrawnStrokes={(newStrokes) => setDrawnStrokes(prev => ({ ...prev, [key]: newStrokes }))} scaleRef={scaleRef} triggerRedraw={redrawCounter} image={canvasImages[key]} onClearImage={() => handleClearImage(key)}/>))}
                             </div>
 
-                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0">
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
                                 <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2 relative h-12 flex justify-end">{customerSignature ? (<div className="p-1 h-full w-full max-w-[300px] border-b-2 border-slate-400 flex items-end justify-end"><img src={customerSignature} alt="Kundenunterschrift" className="h-full object-contain object-right-bottom" /></div>) : (<div className="p-2 h-12 bg-slate-50 border border-slate-300 rounded-lg text-center text-sm text-slate-400 font-medium flex items-center justify-center w-full">Feld für Stempel / Unterschrift Kunde</div>)}</div></div>
@@ -837,6 +960,37 @@
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
                         </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center"><button onClick={handleShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button><button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
         }
+
+            // --- PRINT: pro Seite einen eigenen Header einfügen (ohne Screen-Layout zu ändern) ---
+            const ensurePrintHeaders = () => {
+                document.querySelectorAll('.print-page-header').forEach(el => el.remove());
+
+                const mk = (titleText, badgeText) => {
+                    const h = document.createElement('div');
+                    h.className = 'print-page-header';
+                    const t = document.createElement('div');
+                    t.className = 'title';
+                    t.textContent = titleText;
+                    const b = document.createElement('span');
+                    b.className = 'badge';
+                    b.textContent = badgeText;
+                    h.appendChild(t);
+                    h.appendChild(b);
+                    return h;
+                };
+
+                const sit = document.querySelector('.situation-view-wrapper');
+                if (sit) sit.insertBefore(mk('Ihre Aktuelle Situation', 'Analyse'), sit.firstChild);
+
+                const off = document.querySelector('.print-offer-view');
+                if (off) off.insertBefore(mk('Ihr Persönliches Angebot', 'Angebot'), off.firstChild);
+            };
+
+            window.addEventListener('beforeprint', ensurePrintHeaders);
+            window.addEventListener('afterprint', () => {
+                document.querySelectorAll('.print-page-header').forEach(el => el.remove());
+            });
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
