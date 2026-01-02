@@ -491,7 +491,61 @@ html, body {
         box-shadow: none !important;
     }
 
+    /* ===== PRINT ONLY: Select-Felder größer & besser lesbar ===== */
+    select {
+        height: 48px !important;          /* +2 Höhe */
+        padding-left: 12px !important;    /* +1 Breite */
+        padding-right: 32px !important;   /* +1 Breite */
+        font-size: 11px !important;       /* minimal größer für Papier */
+        line-height: 1.2 !important;
+    }
+
+    select option {
+        color: #000000 !important;
+    }
+
+    /* ===== PRINT ONLY: Stammdaten Selects untereinander & volle Breite ===== */
+    @media print {
+
+        /* Container der beiden Selects (Kundentyp / Segment) */
+        .stammdaten-select-row,
+        .stammdaten-selects,
+        .stammdaten select {
+            width: 100% !important;
+        }
+
+        /* Falls sie in einer Flex-Row liegen: untereinander stapeln */
+        .stammdaten-select-row,
+        .stammdaten-selects {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+
+        /* Selects selbst */
+        .stammdaten-select-row select,
+        .stammdaten-selects select {
+            width: 100% !important;
+            height: 48px !important;
+        }
+    }
+
 }
+
+    /* ===== PRINT ONLY: Stammdaten (Kundentyp + Segment) untereinander & volle Breite ===== */
+    @media print {
+        /* Der echte Wrapper in deiner Datei: grid grid-cols-2 gap-2 mb-2 shrink-0 */
+        .situation-view-wrapper .grid.grid-cols-2.gap-2.mb-2.shrink-0{
+            grid-template-columns: 1fr !important; /* statt 2 Spalten -> 1 Spalte */
+            gap: 10px !important;
+        }
+        .situation-view-wrapper .grid.grid-cols-2.gap-2.mb-2.shrink-0 > div{
+            width: 100% !important;
+        }
+        .situation-view-wrapper .grid.grid-cols-2.gap-2.mb-2.shrink-0 select{
+            width: 100% !important;
+        }
+    }
 
     </style>
 </head>
