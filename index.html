@@ -633,12 +633,18 @@ html, body {
                         </p>
                         
                         <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs font-mono text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 truncate flex-1">https://empfehlen.de/u/kunden-id</span>
-                                <button className="p-2 hover:bg-slate-200 rounded text-slate-500" title="Link kopieren" onClick={() => { copyToClipboard('https://empfehlen.de/u/kunden-id'); alert('Link kopiert!'); }}>
-                                    <Icon d={ICONS.Clipboard} size={16}/>
-                                </button>
-                             </div>
+                             <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <a href="https://jefferson990.github.io/Freunde-Werben-Freunde/" target="_blank"
+                                       className="text-xs font-mono text-slate-500 bg-white px-2 py-1 rounded border border-slate-200 truncate flex-1 hover:bg-slate-50 transition">
+                                        https://jefferson990.github.io/Freunde-Werben-Freunde/
+                                    </a>
+                                    <button className="p-2 hover:bg-slate-200 rounded text-slate-500" title="Link kopieren"
+                                            onClick={() => { copyToClipboard('https://jefferson990.github.io/Freunde-Werben-Freunde/'); alert('Link kopiert!'); }}>
+                                        <Icon d={ICONS.Clipboard} size={16}/>
+                                    </button>
+                                </div>
+</div>
                         </div>
 
                         <div className="flex flex-col w-full gap-3">
@@ -846,7 +852,7 @@ html, body {
             const [translatedText, setTranslatedText] = useState({});
             const [staticTranslations, setStaticTranslations] = useState({}); 
             const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-            const [oneDriveLink, setOneDriveLink] = useState('https://onedrive.live.com/action-map-placeholder'); 
+            const [oneDriveLink, setOneDriveLink] = useState('https://jefferson990.github.io/Verkaufsmappe/'); 
             const [isDrawing, setIsDrawing] = useState(false);
             const [toastMessage, setToastMessage] = useState(null); 
             const toastTimerRef = useRef(null);
