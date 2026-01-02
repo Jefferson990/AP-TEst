@@ -362,19 +362,19 @@ html, body {
     /* ---- PRINT: Seite 1 Breitensteuerung (Links/Mitte/Rechts = 30/50/20) ---- */
     /* Da Main (Links+Mitte) im Print 80% hat, müssen die Zellbreiten 37.5% / 62.5% sein */
     .situation-view-wrapper [class*="w-[30%]"]{
-        width: 37.5% !important;
-        flex: 0 0 37.5% !important;
-        max-width: 37.5% !important;
+        width: 30% !important;
+        flex: 0 0 30% !important;
+        max-width: 30% !important;
     }
     .situation-view-wrapper [class*="w-[70%]"]{
-        width: 62.5% !important;
-        flex: 0 0 62.5% !important;
-        max-width: 62.5% !important;
+        width: 70% !important;
+        flex: 0 0 70% !important;
+        max-width: 70% !important;
     }
     /* Inline-Overlay (left:30%/width:70%) für Stylus im Print überschreiben */
     .situation-view-wrapper .flex.w-full.flex-1.min-h-0.relative .absolute.inset-0.z-20{
-        left: 37.5% !important;
-        width: 62.5% !important;
+        left: 30% !important;
+        width: 70% !important;
     }
     /* Scroll-Container in Sidebar im Print auflösen */
     .situation-view-wrapper .overflow-y-auto{
