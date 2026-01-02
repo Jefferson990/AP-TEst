@@ -117,113 +117,134 @@
             overflow: hidden; touch-action: none;
         }
         
-        /* --- PRINT STYLES (Querformat + Hintergrund) --- */
+        /* --- PRINT STYLES (EXAKT 2 SEITEN A4) --- */
         
         @media print {
-            /* 1. Querformat (Landscape) und Ränder setzen */
             @page {
                 size: A4 landscape; 
-                margin: 1.5cm;
+                margin: 0.5cm;
             }
             
-            /* 2. Hintergrundfarben und Bilder erzwingen */
-            body {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                background-color: #ffffff !important; /* Hintergrund der Seite beibehalten */
+            html, body {
+                width: 100%;
+                height: auto !important;
+                overflow: visible !important;
+                background-color: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
-            /* FIX: Header und Footer immer ausblenden */
+            /* UI Elemente ausblenden */
             header, 
             .footer-bar, 
-            .fixed.inset-0.z-50 { /* Hide any lingering modals */
+            .fixed.inset-0.z-50, /* Modals */
+            aside,
+            button {
                 display: none !important;
             }
 
-            /* NEU: Seite 1 (Situation) Druck-Logik */
-            /* Nur ausblenden, wenn sie im React-State 'hidden' ist */
-            .situation-view-wrapper.hidden {
-                display: none !important;
-            }
-
-            /* Wenn Seite 1 sichtbar ist, für Druck fixieren */
-            .situation-view-wrapper:not(.hidden) {
-                display: flex !important;
-                position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
+            #root {
+                display: block !important;
                 width: 100% !important;
-                height: 100% !important;
-                margin: 0 !important;
-                background-color: #ffffff !important;
-                z-index: 50;
+                height: auto !important;
                 overflow: visible !important;
             }
 
-            /* 3. Seite 2 (Angebot) Druck-Logik */
-            /* Nur ausblenden, wenn sie im React-State 'hidden' ist */
-            .print-offer-view.hidden {
-                display: none !important;
+            /* --- SEITE 1: SITUATION --- */
+            .situation-view-wrapper {
+                display: block !important; /* Immer anzeigen */
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: relative !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 90vh; /* Seite füllen */
+                overflow: visible !important;
+                
+                /* Skalierung für A4 */
+                zoom: 0.75; 
+                
+                /* Zwingender Umbruch NACH Seite 1 */
+                break-after: page !important;
+                page-break-after: always !important;
+                
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
-            .print-offer-view:not(.hidden) {
-                /* Muss sichtbar sein */
-                display: flex !important; 
-                position: fixed !important; 
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
+            /* Layout Anpassung Situation im Druck: Sidebar ist weg, also Full Width */
+            .situation-view-wrapper > div {
                 padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+            }
+
+            /* --- SEITE 2: ANGEBOT --- */
+            .print-offer-view {
+                display: block !important; /* Immer anzeigen */
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: relative !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 90vh;
+                overflow: visible !important;
+                
+                /* Skalierung für A4 */
+                zoom: 0.75;
+                
+                /* Zwingender Umbruch VOR Seite 2 (Sicherheit) */
+                break-before: page !important;
+                page-break-before: always !important;
+                
                 margin: 0 !important;
-                overflow: hidden !important;
-                background-color: #ffffff !important;
+                padding: 0 !important;
             }
             
-            /* 4. Elemente auf der Angebotsseite anpassen (Border/Shadows entfernen) */
+            /* Angebots-Container Anpassung */
             .offer-canvas-container {
                 box-shadow: none !important;
-                border: 1px solid #ccc !important;
-                min-height: 250px !important; /* Kleiner machen für den Druck */
+                border: 1px solid #cbd5e1 !important;
+                min-height: 350px !important; 
+                margin-bottom: 20px !important;
+                background: white !important;
             }
 
-            .bg-white, .shadow-xl {
-                box-shadow: none !important;
-                background-color: #ffffff !important;
+            /* Verhindern von Umbrüchen IN den Elementen */
+            .offer-canvas-container, 
+            .bg-white, 
+            .grid,
+            .flex-1 {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
             }
 
+            /* Visuelle Korrekturen */
             .canvas-lines {
-                background-image: repeating-linear-gradient(to bottom, transparent, transparent 19px, #d1d5db 20px) !important;
+                background-image: repeating-linear-gradient(to bottom, transparent, transparent 19px, #e2e8f0 20px) !important;
             }
             
-            /* Sicherstellen, dass die Canvas-Zeichnungen gedruckt werden (durch Sichtbarkeit) */
             .drawing-canvas, .canvas-image {
                 opacity: 1 !important;
+                display: block !important;
+                visibility: visible !important;
             }
             
-            /* Text-Inputs sichtbar machen, falls sie im Pen-Modus ausgeblendet sind */
-            .offer-canvas-container textarea {
+            .offer-canvas-container textarea, input, select {
                 color: #000000 !important;
                 -webkit-text-fill-color: #000000 !important;
                 opacity: 1 !important;
+                display: block !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
             }
             
             .signature-canvas-container {
-                /* Signatur-Linie beibehalten */
                 background-image: linear-gradient(to bottom, transparent 90%, #6b7280 91%, transparent 92%) !important;
             }
-
-            /* Seitenumbrüche für die 3 Angebote ermöglichen (optional) */
-            .offer-print-grid {
-                display: block !important;
-            }
-
-            .offer-print-grid > div {
-                break-inside: avoid;
-                margin-bottom: 20px;
-            }
         }
-
     </style>
 </head>
 <body>
@@ -293,7 +314,8 @@
             Signature: '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>', 
             Share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
             EraserLine: '<path d="m5 20 5-5-2-2-5 5-2 2z"/><path d="M22 12 18 8 14 12 18 16Z"/><path d="M5 20 9 16"/><path d="M18 8 22 12"/>',
-            Gift: '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>'
+            Gift: '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+            Print: '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>'
         };
 
         // --- 1. DATA CONFIG ---
@@ -317,11 +339,8 @@
         const COLORS = [{ id: 'black', value: '#000000', label: 'Schwarz' }, { id: 'pencil', value: '#374151', label: 'Bleistift' }, { id: 'blue', value: '#0044ff', label: 'Blau' }, { id: 'red', value: '#ff0000', label: 'Rot' }, { id: 'green', value: '#00cc00', label: 'Grün' }, { id: 'yellow', value: '#ffcc00', label: 'Gelb' }, { id: 'pink', value: '#ff00cc', label: 'Rosa' }, { id: 'purple', value: '#8800ff', label: 'Lila' }];
         const STROKE_SIZES = [{ id: 1, width: 2, label: 'Dünn' }, { id: 2, width: 4, label: 'Mittel' }, { id: 3, width: 8, label: 'Dick' }];
         
-        // --- MOCK TRANSLATION DATA (Lokale Simulation) ---
         const MOCK_TRANSLATIONS = {
-            // English (en)
             en: {
-                // Static Labels
                 Offer1Title: '1. Hardware, Provider & Usage',
                 Offer2Title: '2. Household and other products',
                 Offer3Title: '3. TV & Wi-Fi',
@@ -344,23 +363,19 @@
                 StatusOpen: 'Open',
                 StatusClosed: 'Closed',
                 StatusNeutral: 'Neutral',
-                // Dynamic Text Data (Mocked content)
                 AgentName: 'Max Sampleman',
                 DateValue: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
                 offer1: 'Example text for Offer 1: Mobile plan with unlimited data and new smartphone included.',
                 offer2: 'Example text for Offer 2: Internet 1000 MBit/s fiber connection and additional devices.',
                 offer3: 'Example text for Offer 3: TV streaming package and Mesh Wi-Fi solution for the entire house.',
             },
-            // Spanish (es) - partial translation
             es: {
-                // Static Labels
                 Offer1Title: '1. Hardware, Proveedor y Uso',
                 Offer2Title: '2. Hogar y otros productos',
                 CostHeader: 'Resumen de Costos y Cierre',
                 CostEinmalig: 'PAGO ÚNICO (€)',
                 AgentLabel: 'AGENTE PERSONAL',
                 Kundenname_Label: 'Nombre del Cliente',
-                // Dynamic Text Data (Mocked content)
                 AgentName: 'Max Muestras',
                 offer1: 'Texto de ejemplo para Oferta 1 en español.',
             }
@@ -368,12 +383,9 @@
 
         const SectionCard = ({ title, children, className = "" }) => (<div className={`bg-white p-3 rounded-xl border border-slate-200 shadow-sm ${className}`}><h3 className="font-bold text-slate-800 mb-2 text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-2 shrink-0">{title}</h3><div className="flex-1 min-h-0 flex flex-col justify-center">{children}</div></div>);
         const copyToClipboard = (text) => { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); document.execCommand("copy"); document.body.removeChild(ta); };
-        // NOTE: fetchWithRetry is removed as we are using local mock translation now.
 
-        // --- MODALS ---
         const ImagePlacementModal = ({ isOpen, onClose, onPlace, imageName }) => { if (!isOpen) return null; const handleSelect = (key) => { onPlace(key); }; return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.Folder} size={24} className="text-blue-600"/> Bild platzieren</h3><p className="text-sm text-slate-600 mb-6">Wählen Sie den Abschnitt, in den das Bild "<span className="font-bold truncate">{imageName}</span>" eingefügt werden soll.</p><div className="grid grid-cols-3 gap-4">{['offer1', 'offer2', 'offer3'].map((key, index) => (<button key={key} onClick={() => handleSelect(key)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center hover:bg-blue-100 transition-colors flex flex-col items-center justify-center min-h-[100px]"><Icon d={index === 0 ? ICONS.Smartphone : index === 1 ? ICONS.Users : ICONS.Router} size={30} className="text-slate-500 mb-1"/><span className="font-bold text-slate-700 text-sm">{index + 1}. Angebot</span></button>))}</div><div className="flex justify-end mt-6"><button onClick={() => onClose(true)} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button></div></div></div>); };
         
-        // Modal für die Kundenunterschrift (SignatureModal) MIT PAPIER-OPTION
         const SignatureModal = ({ isOpen, onClose, onSign }) => {
             const canvasRef = useRef(null);
             const [isDrawingSig, setIsDrawingSig] = useState(false);
@@ -391,8 +403,38 @@
             if (!isOpen) return null;
             return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.Signature} size={24} className="text-green-600"/> Kundenunterschrift</h3><p className="text-sm text-slate-600 mb-1">Bitte unterschreiben Sie mit Ihrem Finger oder Stylus in der dafür vorgesehenen Fläche.</p><button type="button" onClick={handlePaperSignature} className="text-xs text-slate-500 hover:text-slate-700 underline decoration-dotted mb-3">Papier-Unterschrift – Kunde unterschreibt klassisch auf Papier und wir machen weiter</button><div className="signature-canvas-container relative" style={{ touchAction: 'none' }}><canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair drawing-canvas" onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing}/></div><div className="flex justify-between items-center mt-4"><button onClick={clearCanvas} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" disabled={!hasSigned}><Icon d={ICONS.Trash} size={16}/> Löschen</button><div className="flex gap-2"><button onClick={() => onClose(true)} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${hasSigned ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!hasSigned}>Übernehmen <Icon d={ICONS.CheckCircle} size={16}/></button></div></div></div></div>);
         };
+
+        const FinishTypeModal = ({ isOpen, onClose, onSelect }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 relative border border-slate-200">
+                        <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-400"><Icon d={ICONS.X} size={20}/></button>
+                        <h3 className="text-2xl font-black text-slate-800 mb-2 text-center">Wie möchten Sie fortfahren?</h3>
+                        <p className="text-slate-500 text-center mb-8">Bitte wählen Sie den Status dieses Vorgangs, um die entsprechenden Schritte einzuleiten.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <button onClick={() => onSelect('deal')} className="group flex flex-col items-center justify-center p-8 bg-green-50 border-2 border-green-200 rounded-2xl hover:bg-green-100 hover:border-green-400 hover:shadow-xl transition-all">
+                                <div className="w-20 h-20 bg-green-200 rounded-full flex items-center justify-center text-green-700 mb-4 group-hover:scale-110 transition-transform shadow-sm">
+                                    <Icon d={ICONS.CheckCircle} size={40} />
+                                </div>
+                                <h4 className="text-xl font-black text-green-900 mb-2">Vertrag / Abschluss</h4>
+                                <p className="text-sm text-green-700 text-center leading-relaxed">Der Kunde möchte abschließen.<br/>• Unterschrift erfassen<br/>• Freunde werben<br/>• Dokument drucken</p>
+                            </button>
+
+                            <button onClick={() => onSelect('quote')} className="group flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-slate-200 rounded-2xl hover:bg-white hover:border-blue-400 hover:shadow-xl transition-all">
+                                <div className="w-20 h-20 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-500 mb-4 group-hover:scale-110 transition-transform shadow-sm group-hover:text-blue-600">
+                                    <Icon d={ICONS.Print} size={36} />
+                                </div>
+                                <h4 className="text-xl font-black text-slate-800 mb-2">Nur Angebot</h4>
+                                <p className="text-sm text-slate-500 text-center leading-relaxed">Der Kunde benötigt Bedenkzeit.<br/>• Keine Unterschrift<br/>• Status "Offen"<br/>• Direkt drucken/speichern</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
         
-        // --- REFERRAL MODAL (Neu hinzugefügt/wiederhergestellt) ---
         const ReferralModal = ({ isOpen, onClose, onPrint }) => {
             if (!isOpen) return null;
             const handlePrintAction = () => {
@@ -434,12 +476,11 @@
         };
 
         const WlanModal=({isOpen,onClose,triggerToast})=>{const[floors,setFloors]=useState(2);const[router,setRouter]=useState('eg');const[needs,setNeeds]=useState(new Set(['eg','og1']));const[thickWalls,setThickWalls]=useState(false);const toggleNeed=(f)=>setNeeds(prev=>prev.has(f)?new Set([...prev].filter(x=>x!==f)):new Set([...prev,f]));const{sugg,reason,badgeId}=useMemo(()=>{let s='Repeater';let r='Standard zur Flächenabdeckung';let b='bRep';if(floors>2){s='Mesh / Powerline';r='Größere Fläche';b='bMesh';}if(thickWalls){s='Repeater';r='Dicke Wände (Verstärkung notwendig)';b='bRep';}return{sugg:s,reason:r,badgeId:b};},[floors,router,needs,thickWalls]);const yForFloor=(f)=>{if(f==='keller')return 495;const houseBottom=460;const houseHeight=300;const floorHeight=houseHeight/floors;let index=0;if(f==='eg')index=0;else if(f==='og1')index=1;else if(f==='og2')index=2;else if(f==='dg')index=floors-1;return houseBottom-(index*floorHeight)-(floorHeight/2);};const handleCopy=()=>{copyToClipboard(`Empfehlung: ${sugg} (${reason})`);triggerToast('WLAN-Empfehlung kopiert!');};if(!isOpen)return null;const availableFloors=['KELLER','EG'];if(floors>=2)availableFloors.push('OG1');if(floors>=3)availableFloors.push('DG');if(floors>=4){availableFloors[3]='OG2';availableFloors.push('DG');}return(<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-[1000px] max-h-[90vh] overflow-y-auto relative rounded-2xl border border-[#cbd5e1] shadow-2xl flex flex-col md:flex-row"><button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 hover:bg-slate-100 rounded-full text-slate-500"><Icon d={ICONS.X} size={20}/></button><div className="w-full md:w-1/2 bg-blue-50/50 p-8 flex flex-col justify-center border-b md:border-b-0 md:border-r border-slate-100 relative"><div className="absolute top-4 left-4 text-slate-400 font-bold text-xs tracking-widest">VORSCHAU</div><svg viewBox="0 0 560 560" className="w-full h-auto house-svg drop-shadow-xl wlan-svg"><path d="M80 160 L280 70 L480 160" className="roof" strokeWidth="2"/><rect x="80" y="160" width="400" height="300" rx="12" className="house-body" strokeWidth="2"/>{Array.from({length:floors-1}).map((_,i)=><line key={i} x1="90" x2="470" y1={460-(300/floors)*(i+1)} y2={460-(300/floors)*(i+1)} className="floor-line" strokeWidth="2"/>)}<rect x="80" y="470" width="400" height="50" rx="8" className="keller" strokeWidth="2"/><text x="90" y="502" fontSize="12" fontWeight="700" fill="#64748b">Keller</text><defs><clipPath id="aboveClip"><rect x="80" y="160" width="400" height="300"/></clipPath><clipPath id="basementClip"><rect x="80" y="470" width="400" height="50"/></clipPath></defs><g clipPath="url(#aboveClip)">{router!=='keller'&&<g transform={`translate(140, ${yForFloor(router)-16})`}><rect x="-20" y="-12" width="40" height="24" rx="6" fill="#0f172a"/><circle cx="0" cy="-2" r="2" fill="#22c55e"/></g>}{Array.from(needs).filter(n=>n!=='keller').map(n=>(<g key={n} transform={`translate(390, ${yForFloor(n)-24})`} className="wifi-glow"><path d="M-10 -10 L0 0 L10 -10" stroke="#3b82f6" strokeWidth="3" fill="none"/><circle r="3" fill="#3b82f6"/></g>))}</g><g clipPath="url(#basementClip)">{router==='keller'&&<g transform={`translate(140, ${yForFloor('keller')-16})`}><rect x="-20" y="-12" width="40" height="24" rx="6" fill="#0f172a"/><circle cx="0" cy="-2" r="2" fill="#22c55e"/></g>}{needs.has('keller')&&<g transform={`translate(390, ${yForFloor('keller')-24})`} className="wifi-glow"><path d="M-10 -10 L0 0 L10 -10" stroke="#3b82f6" strokeWidth="3" fill="none"/><circle r="3" fill="#3b82f6"/></g>}</g></svg></div><div className="w-full md:w-1/2 p-8 overflow-y-auto relative"><h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><Icon d={ICONS.Wifi} className="text-blue-600"/> WLAN Haus-Planer</h2><div className="space-y-6"><div><label className="block text-sm font-bold text-slate-700 mb-2">Anzahl Etagen</label><div className="flex gap-2">{[1,2,3,4].map(n=><button key={n} onClick={()=>setFloors(n)} className={`wlan-num wlan-chip ${floors===n?'toggled':''}`}>{n}</button>)}</div><label className="flex gap-2 items-center mt-2 cursor-pointer"><input type="checkbox" checked={thickWalls} onChange={(e)=>setThickWalls(e.target.checked)} className="accent-blue-600"/> <span className="text-xs text-slate-500">Dicke Wände / Stahlbeton</span></label></div><div><h3 className="font-bold text-slate-700 mb-2">Router Standort</h3><div className="flex flex-wrap gap-2">{availableFloors.map(f=><button key={f} onClick={()=>setRouter(f.toLowerCase())} className={`wlan-chip ${router===f.toLowerCase()?'toggled':''}`}>{f.toUpperCase()}</button>)}</div></div><div><h3 className="font-bold text-slate-700 mb-2">WLAN Bedarf</h3><div className="flex flex-wrap gap-2">{availableFloors.map(f=><button key={f} onClick={()=>toggleNeed(f.toLowerCase())} className={`wlan-chip ${needs.has(f.toLowerCase())?'toggled':''}`}>{f.toUpperCase()}</button>)}</div></div><div className="p-4 bg-white border border-blue-100 rounded-xl shadow-sm"><div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">EMPFEHLUNG</div><div className="text-xl font-black text-blue-900 mb-1">{sugg}</div><div className="text-sm text-slate-600">{reason}</div><div className="flex gap-2 mt-3">{['Mesh','Repeater','Powerline'].map(t=><span key={t} className={`wlan-badge ${badgeId===(t==='Mesh'?'bMesh':t==='Repeater'?'bRep':'bPow')?'glow':''}`}>{t}</span>)}</div><button onClick={handleCopy} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md mt-4">Empfehlung kopieren</button></div></div></div></div></div>);};
-        const SpeedModal=({isOpen,onClose,triggerToast})=>{const[simDl,setSimDl]=useState(100);const[simUl,setSimUl]=useState(40);const[tiers,setTiers]=useState([{dl:16,ul:2.4,on:true},{dl:50,ul:10,on:true},{dl:100,ul:40,on:true},{dl:250,ul:40,on:true},{dl:1000,ul:100,on:true}]);const[activities,setActivities]=useState([{k:'surf',label:'Surfen',dl:1.5,ul:0.2,n:2},{k:'video',label:'Videotelefonie',dl:3,ul:1.5,n:1},{k:'stream',label:'Streaming HD',dl:5,ul:1,n:1},{k:'stream4k',label:'4K‑Streaming',dl:25,ul:2,n:0},{k:'gaming',label:'Online‑Gaming',dl:3,ul:0.5,n:1},{k:'home',label:'Home‑Office',dl:4,ul:2,n:1}]);const[prefs,setPrefs]=useState(new Set());const{rec,needDl,needUl,gaugePct}=useMemo(()=>{let nDl=0,nUl=0;activities.forEach(a=>{nDl+=a.n*a.dl;nUl+=a.n*a.ul;});nDl=Math.ceil(nDl*1.2);nUl=Math.ceil(nUl*1.2);const avail=tiers.filter(t=>t.on).sort((a,b)=>a.dl-b.dl);let r=avail.find(t=>t.dl>=nDl&&t.ul>=Math.max(nUl,2));if(!r&&avail.length>0)r=avail[avail.length-1];const pct=r?Math.min(100,Math.round((nDl/r.dl)*100)):0;return{needDl:nDl,needUl:nUl,rec:r,gaugePct:pct};},[activities,tiers,prefs]);useEffect(()=>{if(rec){setSimDl(rec.dl);setSimUl(Math.max(rec.ul,1));}},[rec]);const toggleTier=(i)=>{const newT=[...tiers];newT[i].on=!newT[i].on;setTiers(newT);};const updateAct=(k,delta)=>{setActivities(prev=>prev.map(a=>a.k===k?{...a,n:Math.max(0,a.n+delta)}:a));};const togglePref=(k)=>{const p=new Set(prefs);if(p.has(k))p.delete(k);else p.add(k);setPrefs(p);};const secsToStr=(s)=>{if(!isFinite(s)||s<0)return'–';const m=Math.floor(s/60),sec=Math.round(s%60);return m>=60?`${Math.floor(m/60)} h ${m%60} min`:m>=1?`${m} min ${sec} s`:`${sec} s`;};const handleCopy=()=>{copyToClipboard(`Empfehlung: ${rec?.dl}/${rec?.ul}`);triggerToast('Speed-Empfehlung kopiert!');};if(!isOpen)return null;return(<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"><style>{` .sp-modal { --primary: #3949AB; --bg: #FFFFFF; --panel: #F5F5F5; --border: #E0E0E0; --text: #424242; --muted: #757575; font-family: system-ui,-apple-system,sans-serif; } .sp-modal .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); } .sp-modal h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 800; color: #1A237E; letter-spacing:.2px; } .sp-modal .chip { background: #ffffff; border: 1px solid var(--border); color: #424242; border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; transition: all 0.2s; } .sp-modal .chip:hover { background: #e0e0e0; } .sp-modal .chip.toggled { background: #BBDEFB; color: #1A237E; border-color: #3949AB; box-shadow: 0 2px 4px rgba(57, 73, 171, 0.2); font-weight: 600; } .sp-modal .gauge { width: 280px; aspect-ratio: 1/1; margin: 0 auto; position: relative; background: conic-gradient(from -90deg, #3949AB 0 var(--p), #E0E0E0 var(--p) 360deg); border-radius: 999px; border: 12px solid #F5F5F5; box-shadow: 0 4px 12px rgba(0,0,0,0.05); } .sp-modal .gauge .inner { position: absolute; inset: 40px; background: #ffffff; border-radius: 999px; display: grid; place-items: center; border: 6px solid #F5F5F5; } .sp-modal .val { font-size: 36px; font-weight: 900; line-height: 1; color: #3949AB; } .sp-modal .val-ul { font-size: 20px; color: #424242; } .sp-modal .text-label { font-size: 10px; uppercase; tracking-widest; color: #757575; } .sp-modal .btn { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: #ffffff; color: #424242; cursor: pointer; font-size: 13px; font-weight: 600; } .sp-modal .btn:hover { background: #f0f0f0; } .sp-modal .btn.primary { background: #3949AB; border-color: #3949AB; color: #ffffff; } .sp-modal input[type=range] { width: 100%; accent-color: #3949AB; } .sp-modal table { width: 100%; font-size: 14px; border-collapse: collapse; color: #424242; } .sp-modal td, .sp-modal th { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; } .sp-modal th { color: #757575; } .sp-modal .metric { background: #ffffff; border: 1px solid var(--border); padding: 8px 10px; border-radius: 12px; text-align: center; font-size: 13px; color: var(--muted); } .sp-modal .metric b { color: #424242; display: block; font-size: 14px; margin-top: 2px; } .sp-modal .rowlabel { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; } .sp-modal .act-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: #ffffff; color: #424242; display: grid; place-items: center; cursor: pointer; } .sp-modal .act-val { width: 30px; text-align: center; font-weight: bold; color: #0f172a; } `}</style><div className="sp-modal bg-white w-full max-w-[1100px] max-h-[95vh] overflow-y-auto rounded-2xl relative border border-[#E0E0E0] shadow-2xl flex flex-col text-[#424242]"><button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-[#F5F5F5] hover:bg-[#E0E0E0] text-[#424242] border border-[#E0E0E0]"><Icon d={ICONS.X} size={20}/></button><div className="p-6 pb-2 text-center"><div className="inline-flex items-center gap-2 bg-[#F5F5F5] px-4 py-2 rounded-full border border-[#E0E0E0] shadow-sm mb-2"><span className="w-2.5 h-2.5 rounded-full bg-[#3949AB] shadow-[0_0_0_3px_rgba(57,73,171,0.2)]"></span><span className="font-bold text-sm text-[#1A237E] tracking-wide">Speed-Rechner</span></div><h1 className="text-2xl font-black mt-2 text-[#1A237E]">Tarifempfehlung</h1><p className="text-sm text-[#757575] mt-1">{rec?`${rec.dl} MBit/s Download`:'Bitte wählen'}</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_1fr] gap-4 p-6 pt-2"><div className="flex flex-col gap-4"><div className="card"><h3>Verfügbares Breitband</h3><div className="flex flex-wrap gap-2">{tiers.map((t,i)=><button key={i} onClick={()=>toggleTier(i)} className={`chip ${t.on?'toggled':''}`}>{t.dl}</button>)}</div></div><div className="card"><h3>Wichtige Themen?</h3><div className="flex flex-wrap gap-2">{['download','upload','stability','latency'].map(k=>(<button key={k} onClick={()=>togglePref(k)} className={`chip ${prefs.has(k)?'toggled':''}`}>{k==='download'?'Download':k==='upload'?'Upload':k==='stability'?'Stabilität':'Ping'}</button>))}</div></div></div><div className="flex flex-col items-center gap-4"><div className="gauge" style={{'--p':`${Math.max(0,Math.min(100,gaugePct))*3.6}deg`}}><div className="inner"><div className="text-center"><div className="val" style={{color:'#3949AB'}}>{rec?rec.dl:0}</div><div className="text-label mb-2">MBit/s Down</div><div className="val-ul" style={{fontSize:'20px',color:'#424242'}}>{rec?rec.ul:0}</div><div className="text-label">MBit/s Up</div></div></div></div><div className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl p-4 text-center shadow-sm"><div className="text-lg font-bold text-[#3949AB] mb-3">{rec?`Empfehlung: ${rec.dl} / ${rec.ul}`:'Keine Empfehlung'}</div><div className="grid grid-cols-2 gap-2 text-xs"><div className="metric">Bedarf Down <b>{needDl}</b></div><div className="metric">Bedarf Up <b>{needUl}</b></div></div></div><button onClick={handleCopy} className="btn primary w-full py-3 shadow-md">Empfehlung kopieren</button></div><div className="flex flex-col gap-4"><div className="card"><h3>Aktivitäten (gleichzeitig)</h3><div className="flex flex-col gap-2">{activities.map(a=>(<div key={a.k} className="rowlabel"><span className="text-sm text-[#424242]">{a.label}</span><div className="flex items-center gap-2"><button className="act-btn" onClick={()=>updateAct(a.k,-1)}>-</button><span className="act-val">{a.n}</span><button className="act-btn" onClick={()=>updateAct(a.k,1)}>+</button></div></div>))}</div></div><div className="card"><h3>Simulation</h3><div className="mb-3 space-y-2 text-xs"><div className="flex justify-between"><span className="text-[#757575]">Download</span> <b className="text-[#3949AB]">{simDl} MBit</b></div><input type="range" min="10" max="1000" value={simDl} onChange={(e)=>setSimDl(parseInt(e.target.value))}/></div><table><thead><tr><th>Datei</th><th>Größe</th><th>Zeit</th></tr></thead><tbody>{[{l:'Film HD',gb:4},{l:'Game',gb:50},{l:'Cloud',gb:2,up:true}].map((row,i)=>{const rate=row.up?simUl*125000:simDl*125000;const time=(row.gb*1024*1024*1024)/rate;const hours = Math.floor(time / 3600); const minutes = Math.floor((time % 3600) / 60); const seconds = Math.round(time % 60); const timeStr = hours > 0 ? `${hours} h ${minutes} min` : minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`; return<tr key={i}><td>{row.l}</td><td>{row.gb} GB</td><td className="font-mono text-[#3949AB]">{timeStr}</td></tr>;})}</tbody></table></div></div></div></div></div>);};
+        const SpeedModal=({isOpen,onClose,triggerToast})=>{const[simDl,setSimDl]=useState(100);const[simUl,setSimUl]=useState(40);const[tiers,setTiers]=useState([{dl:16,ul:2.4,on:true},{dl:50,ul:10,on:true},{dl:100,ul:40,on:true},{dl:250,ul:40,on:true},{dl:1000,ul:100,on:true}]);const[customDl,setCustomDl]=useState('');const[activities,setActivities]=useState([{k:'surf',label:'Surfen',dl:1.5,ul:0.2,n:2},{k:'video',label:'Videotelefonie',dl:3,ul:1.5,n:1},{k:'stream',label:'Streaming HD',dl:5,ul:1,n:1},{k:'stream4k',label:'4K‑Streaming',dl:25,ul:2,n:0},{k:'gaming',label:'Online‑Gaming',dl:3,ul:0.5,n:1},{k:'home',label:'Home‑Office',dl:4,ul:2,n:1}]);const[prefs,setPrefs]=useState(new Set());const{rec,needDl,needUl,gaugePct}=useMemo(()=>{let nDl=0,nUl=0;activities.forEach(a=>{nDl+=a.n*a.dl;nUl+=a.n*a.ul;});nDl=Math.ceil(nDl*1.2);nUl=Math.ceil(nUl*1.2);const avail=tiers.filter(t=>t.on).sort((a,b)=>a.dl-b.dl);let r=avail.find(t=>t.dl>=nDl&&t.ul>=Math.max(nUl,2));if(!r&&avail.length>0)r=avail[avail.length-1];const pct=r?Math.min(100,Math.round((nDl/r.dl)*100)):0;return{needDl:nDl,needUl:nUl,rec:r,gaugePct:pct};},[activities,tiers,prefs]);useEffect(()=>{if(rec){setSimDl(rec.dl);setSimUl(Math.max(rec.ul,1));}},[rec]);const toggleTier=(i)=>{const newT=[...tiers];newT[i].on=!newT[i].on;setTiers(newT);};const updateAct=(k,delta)=>{setActivities(prev=>prev.map(a=>a.k===k?{...a,n:Math.max(0,a.n+delta)}:a));};const togglePref=(k)=>{const p=new Set(prefs);if(p.has(k))p.delete(k);else p.add(k);setPrefs(p);};const secsToStr=(s)=>{if(!isFinite(s)||s<0)return'–';const m=Math.floor(s/60),sec=Math.round(s%60);return m>=60?`${Math.floor(m/60)} h ${m%60} min`:m>=1?`${m} min ${sec} s`:`${sec} s`;};const handleCopy=()=>{copyToClipboard(`Empfehlung: ${rec?.dl}/${rec?.ul}`);triggerToast('Speed-Empfehlung kopiert!');};const addCustomTier=()=>{const val=parseInt(customDl);if(!isNaN(val)&&val>0){const newTier={dl:val,ul:Math.round(val/5),on:true};if(!tiers.find(t=>t.dl===val))setTiers(prev=>[...prev,newTier].sort((a,b)=>a.dl-b.dl));setCustomDl('');}};if(!isOpen)return null;return(<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"><style>{` .sp-modal { --primary: #3949AB; --bg: #FFFFFF; --panel: #F5F5F5; --border: #E0E0E0; --text: #424242; --muted: #757575; font-family: system-ui,-apple-system,sans-serif; } .sp-modal .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); } .sp-modal h3 { margin: 0 0 10px 0; font-size: 14px; font-weight: 800; color: #1A237E; letter-spacing:.2px; } .sp-modal .chip { background: #ffffff; border: 1px solid var(--border); color: #424242; border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; transition: all 0.2s; } .sp-modal .chip:hover { background: #e0e0e0; } .sp-modal .chip.toggled { background: #BBDEFB; color: #1A237E; border-color: #3949AB; box-shadow: 0 2px 4px rgba(57, 73, 171, 0.2); font-weight: 600; } .sp-modal .gauge { width: 280px; aspect-ratio: 1/1; margin: 0 auto; position: relative; background: conic-gradient(from -90deg, #3949AB 0 var(--p), #E0E0E0 var(--p) 360deg); border-radius: 999px; border: 12px solid #F5F5F5; box-shadow: 0 4px 12px rgba(0,0,0,0.05); } .sp-modal .gauge .inner { position: absolute; inset: 40px; background: #ffffff; border-radius: 999px; display: grid; place-items: center; border: 6px solid #F5F5F5; } .sp-modal .val { font-size: 36px; font-weight: 900; line-height: 1; color: #3949AB; } .sp-modal .val-ul { font-size: 20px; color: #424242; } .sp-modal .text-label { font-size: 10px; uppercase; tracking-widest; color: #757575; } .sp-modal .btn { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: #ffffff; color: #424242; cursor: pointer; font-size: 13px; font-weight: 600; } .sp-modal .btn:hover { background: #f0f0f0; } .sp-modal .btn.primary { background: #3949AB; border-color: #3949AB; color: #ffffff; } .sp-modal input[type=range] { width: 100%; accent-color: #3949AB; } .sp-modal table { width: 100%; font-size: 14px; border-collapse: collapse; color: #424242; } .sp-modal td, .sp-modal th { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; } .sp-modal th { color: #757575; } .sp-modal .metric { background: #ffffff; border: 1px solid var(--border); padding: 8px 10px; border-radius: 12px; text-align: center; font-size: 13px; color: var(--muted); } .sp-modal .metric b { color: #424242; display: block; font-size: 14px; margin-top: 2px; } .sp-modal .rowlabel { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; } .sp-modal .act-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: #ffffff; color: #424242; display: grid; place-items: center; cursor: pointer; } .sp-modal .act-val { width: 30px; text-align: center; font-weight: bold; color: #0f172a; } `}</style><div className="sp-modal bg-white w-full max-w-[1100px] max-h-[95vh] overflow-y-auto rounded-2xl relative border border-[#E0E0E0] shadow-2xl flex flex-col text-[#424242]"><button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-[#F5F5F5] hover:bg-[#E0E0E0] text-[#424242] border border-[#E0E0E0]"><Icon d={ICONS.X} size={20}/></button><div className="p-6 pb-2 text-center"><div className="inline-flex items-center gap-2 bg-[#F5F5F5] px-4 py-2 rounded-full border border-[#E0E0E0] shadow-sm mb-2"><span className="w-2.5 h-2.5 rounded-full bg-[#3949AB] shadow-[0_0_0_3px_rgba(57,73,171,0.2)]"></span><span className="font-bold text-sm text-[#1A237E] tracking-wide">Speed-Rechner</span></div><h1 className="text-2xl font-black mt-2 text-[#1A237E]">Tarifempfehlung</h1><p className="text-sm text-[#757575] mt-1">{rec?`${rec.dl} MBit/s Download`:'Bitte wählen'}</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px_1fr] gap-4 p-6 pt-2"><div className="flex flex-col gap-4"><div className="card"><h3>Verfügbares Breitband</h3><div className="flex flex-wrap gap-2">{tiers.map((t,i)=><button key={i} onClick={()=>toggleTier(i)} className={`chip ${t.on?'toggled':''}`}>{t.dl}</button>)}<div className="flex items-center gap-1 bg-white rounded-full px-2 border border-[#E0E0E0] h-[33px]"><input type="number" placeholder="+" className="w-10 h-6 text-xs bg-transparent text-center outline-none text-slate-600" value={customDl} onChange={(e)=>setCustomDl(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')addCustomTier()}} /><button onClick={addCustomTier} className="w-6 h-6 rounded-full bg-[#3949AB] text-white font-bold flex items-center justify-center text-xs hover:bg-[#303F9F] shadow-sm" title="Hinzufügen">+</button></div></div></div><div className="card"><h3>Wichtige Themen?</h3><div className="flex flex-wrap gap-2">{['download','upload','stability','latency'].map(k=>(<button key={k} onClick={()=>togglePref(k)} className={`chip ${prefs.has(k)?'toggled':''}`}>{k==='download'?'Download':k==='upload'?'Upload':k==='stability'?'Stabilität':'Ping'}</button>))}</div></div></div><div className="flex flex-col items-center gap-4"><div className="gauge" style={{'--p':`${Math.max(0,Math.min(100,gaugePct))*3.6}deg`}}><div className="inner"><div className="text-center"><div className="val" style={{color:'#3949AB'}}>{rec?rec.dl:0}</div><div className="text-label mb-2">MBit/s Down</div><div className="val-ul" style={{fontSize:'20px',color:'#424242'}}>{rec?rec.ul:0}</div><div className="text-label">MBit/s Up</div></div></div></div><div className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded-xl p-4 text-center shadow-sm"><div className="text-lg font-bold text-[#3949AB] mb-3">{rec?`Empfehlung: ${rec.dl} / ${rec.ul}`:'Keine Empfehlung'}</div><div className="grid grid-cols-2 gap-2 text-xs"><div className="metric">Bedarf Down <b>{needDl}</b></div><div className="metric">Bedarf Up <b>{needUl}</b></div></div></div><button onClick={handleCopy} className="btn primary w-full py-3 shadow-md">Empfehlung kopieren</button></div><div className="flex flex-col gap-4"><div className="card"><h3>Aktivitäten (gleichzeitig)</h3><div className="flex flex-col gap-2">{activities.map(a=>(<div key={a.k} className="rowlabel"><span className="text-sm text-[#424242]">{a.label}</span><div className="flex items-center gap-2"><button className="act-btn" onClick={()=>updateAct(a.k,-1)}>-</button><span className="act-val">{a.n}</span><button className="act-btn" onClick={()=>updateAct(a.k,1)}>+</button></div></div>))}</div></div><div className="card"><h3>Simulation</h3><div className="mb-3 space-y-2 text-xs"><div className="flex justify-between"><span className="text-[#757575]">Download</span> <b className="text-[#3949AB]">{simDl} MBit</b></div><input type="range" min="10" max="1000" value={simDl} onChange={(e)=>setSimDl(parseInt(e.target.value))}/></div><table><thead><tr><th>Datei</th><th>Größe</th><th>Zeit</th></tr></thead><tbody>{[{l:'Film HD',gb:4},{l:'Game',gb:50},{l:'Cloud',gb:2,up:true}].map((row,i)=>{const rate=row.up?simUl*125000:simDl*125000;const time=(row.gb*1024*1024*1024)/rate;const hours = Math.floor(time / 3600); const minutes = Math.floor((time % 3600) / 60); const seconds = Math.round(time % 60); const timeStr = hours > 0 ? `${hours} h ${minutes} min` : minutes > 0 ? `${minutes} min ${seconds} s` : `${seconds} s`; return<tr key={i}><td>{row.l}</td><td>{row.gb} GB</td><td className="font-mono text-[#3949AB]">{timeStr}</td></tr>;})}</tbody></table></div></div></div></div></div>);};
         const TechVisualizer = ({ type }) => { function CableOutlet() { return (<g transform="translate(0, 0)"><rect x="0" y="20" width="60" height="80" rx="4" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><rect x="5" y="30" width="50" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="2"/><circle cx="30" cy="45" r="6" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><circle cx="20" cy="75" r="6" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><circle cx="40" cy="75" r="6" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><text x="30" y="115" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">DATA - TV - RADIO</text></g>); } function TaeOutlet() { return (<g transform="translate(0, 0)"><rect x="0" y="20" width="60" height="80" rx="4" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="30" width="40" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="2"/><rect x="15" y="40" width="8" height="40" rx="2" fill="#d1d5db" stroke="#9ca3af" strokeWidth="0.5"/><rect x="26" y="40" width="8" height="40" rx="2" fill="#d1d5db" stroke="#9ca3af" strokeWidth="0.5"/><rect x="37" y="40" width="8" height="40" rx="2" fill="#d1d5db" stroke="#9ca3af" strokeWidth="0.5"/><text x="30" y="115" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">TAE-Dose</text></g>); } const [fiberVariant, setFiberVariant] = useState('ont'); const FiberVisualization = ({ variant }) => { if (variant === 'sfp') { return (<g transform="translate(30,40)"><g transform="translate(20, 0)"><rect x="0" y="20" width="60" height="60" rx="4" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2"/><rect x="15" y="45" width="10" height="10" fill="#94a3b8"/><rect x="35" y="45" width="10" height="10" fill="#94a3b8"/><text x="30" y="95" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">GF-Dose</text></g><path d="M80 50 L380 50" stroke="#22c55e" strokeWidth="3" strokeDasharray="4,4" fill="none" className="flow-anim"/><g transform="translate(380, 20)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="0" width="80" height="5" rx="2" fill="#22c55e" opacity="0.8"/><circle cx="30" cy="40" r="3" fill="#22c55e"/><circle cx="50" cy="40" r="3" fill="#22c55e"/><circle cx="70" cy="40" r="3" fill="#cbd5e1"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Router (SFP)</text></g><text x="250" y="15" textAnchor="middle" fontSize="10" fill="#15803d" fontWeight="bold">Variante A: Direkt</text></g>); } else { return (<g transform="translate(30,40)"><g transform="translate(20, 0)"><rect x="0" y="20" width="60" height="60" rx="4" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2"/><rect x="15" y="45" width="10" height="10" fill="#94a3b8"/><rect x="35" y="45" width="10" height="10" fill="#94a3b8"/><text x="30" y="95" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">GF-Dose</text></g><path d="M80 50 Q 150 30, 220 50" stroke="#22c55e" strokeWidth="3" strokeDasharray="4,4" fill="none" className="flow-anim"/><g transform="translate(220, 20)"><rect x="0" y="0" width="70" height="60" rx="4" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><text x="35" y="35" textAnchor="middle" fontSize="12" fontWeight="bold">ONT</text><rect x="10" y="60" width="50" height="10" rx="2" fill="#cbd5e1"/><text x="35" y="80" textAnchor="middle" fontSize="8" fill="#64748b">230V</text></g><path d="M290 50 L380 50" stroke="#3b82f6" strokeWidth="3" fill="none" strokeDasharray="6,6"/><g transform="translate(380, 20)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="0" width="80" height="5" rx="2" fill="#fca5a5" opacity="0.8"/><circle cx="30" cy="40" r="3" fill="#22c55e"/><circle cx="50" cy="40" r="3" fill="#22c55e"/><circle cx="70" cy="40" r="3" fill="#cbd5e1"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Router</text></g><text x="250" y="15" textAnchor="middle" fontSize="10" fill="#2563eb" fontWeight="bold">Variante B: Über ONT</text></g>); } }; const renderContent = () => { switch(type) { case 'dsl': return (<g transform="translate(50,40)"><TaeOutlet /><path d="M60 60 L180 60" stroke="#3b82f6" strokeWidth="4" fill="none"/><rect x="180" y="52" width="40" height="16" rx="4" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><text x="200" y="62" textAnchor="middle" fontSize="8" fill="#64748b" fontWeight="bold">RJ11</text><path d="M220 60 L340 60" stroke="#3b82f6" strokeWidth="4" fill="none"/><path d="M60 60 L340 60" stroke="#bfdbfe" strokeWidth="2" fill="none" className="flow-anim"/><g transform="translate(340, 30)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="0" width="80" height="5" rx="2" fill="#fca5a5" opacity="0.8"/><circle cx="30" cy="40" r="3" fill="#22c55e"/><circle cx="50" cy="40" r="3" fill="#22c55e"/><circle cx="70" cy="40" r="3" fill="#cbd5e1"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">DSL Router</text></g></g>); case 'cable': return (<g transform="translate(50,40)"><CableOutlet /><path d="M60 45 L340 60" stroke="#3b82f6" strokeWidth="4" fill="none"/><rect x="180" y="42" width="40" height="16" rx="4" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><text x="200" y="52" textAnchor="middle" fontSize="8" fill="#64748b" fontWeight="bold">F-Stecker</text><path d="M60 45 L340 60" fill="none" stroke="#bfdbfe" strokeWidth="2" className="flow-anim"/><g transform="translate(340, 30)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="0" width="80" height="5" rx="2" fill="#fca5a5" opacity="0.8"/><circle cx="30" cy="40" r="3" fill="#22c55e"/><circle cx="50" cy="40" r="3" fill="#22c55e"/><circle cx="70" cy="40" r="3" fill="#cbd5e1"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Kabel Router</text></g></g>); case 'fiber': return (<g transform="translate(0, 0)"><FiberVisualization variant={fiberVariant} /></g>); case 'mobile': return (<g transform="translate(60,40)"><g transform="translate(50, 20)"><path d="M20 80 L50 0 L80 80" stroke="#475569" strokeWidth="4" fill="none"/><line x1="35" y1="40" x2="65" y2="40" stroke="#475569" strokeWidth="3"/><circle cx="50" cy="0" r="5" fill="#ef4444"/><text x="50" y="100" textAnchor="middle" fontSize="10" fill="#64748b">5G Mast</text><path d="M20 -10 A 40 40 0 0 1 20 50" stroke="#3b82f6" strokeWidth="3" fill="none" className="signal-wave"/><path d="M40 -20 A 60 60 0 0 1 40 70" stroke="#3b82f6" strokeWidth="3" fill="none" className="signal-wave delay-1"/></g><g transform="translate(200, 40)"><rect x="0" y="0" width="60" height="60" rx="4" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><circle cx="20" cy="30" r="5" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><circle cx="40" cy="30" r="5" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><text x="30" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Schuko</text></g><path d="M260 55 L350 55" stroke="#3b82f6" strokeWidth="3" fill="none" strokeDasharray="6,6"/><g transform="translate(350, 30)"><rect x="0" y="0" width="80" height="60" rx="6" fill="#ffffff" stroke="#cbd5e1" strokeWidth="2"/><rect x="45" y="65" width="40" height="10" rx="2" fill="#ffbf00"/><text x="65" y="72" textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="bold">SIM</text><circle cx="40" cy="30" r="4" fill="#22c55e" className="animate-pulse"/><text x="40" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">5G Router</text></g></g>); case 'hybrid': return (<g transform="translate(40,40)"><TaeOutlet /><g transform="translate(200, -20)"><path d="M-10 80 L10 20 L30 80" stroke="#ef4444" strokeWidth="3" fill="none"/><circle cx="10" cy="20" r="3" fill="#ef4444"/></g><path d="M60 60 L340 60" stroke="#3b82f6" strokeWidth="3" fill="none" strokeDasharray="8,4" className="flow-anim"/><path d="M200 40 Q 300 20, 340 40" stroke="#ef4444" strokeWidth="2" fill="none" strokeDasharray="4,4" className="beam-anim"/><g transform="translate(340, 30)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><rect x="10" y="65" width="40" height="10" rx="2" fill="#ffbf00"/><text x="30" y="72" textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="bold">SIM</text><rect x="10" y="0" width="80" height="5" rx="2" fill="#fca5a5" opacity="0.8"/><circle cx="30" cy="40" r="3" fill="#22c55e"/><circle cx="50" cy="40" r="3" fill="#22c55e"/><circle cx="70" cy="40" r="3" fill="#cbd5e1"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Hybrid Router</text></g></g>); case 'sat': return (<g transform="translate(60,20)"><g transform="translate(100, 20)"><rect x="-30" y="-5" width="60" height="10" fill="#3b82f6"/><circle cx="0" cy="0" r="8" fill="#1e40af"/><text x="0" y="-15" textAnchor="middle" fontSize="10" fill="#64748b">Satellit</text></g><g transform="translate(100, 150)"><path d="M-40 0 C -20 -30, 20 -30, 40 0" fill="none" stroke="#475569" strokeWidth="3"/><line x1="0" y1="0" x2="0" y2="-50" stroke="#475569" strokeWidth="2"/><line x="0" y="0" x="0" y="40" stroke="#475569" strokeWidth="4"/><text x="0" y="55" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Sat-Schüssel</text></g><path d="M100 20 L100 120" stroke="#bfdbfe" strokeWidth="2" strokeDasharray="4,4" className="beam-anim"/><path d="M100 150 L250 150" stroke="#3b82f6" strokeWidth="2" fill="none" strokeDasharray="6,6"/><g transform="translate(250, 120)"><rect x="0" y="0" width="80" height="60" rx="6" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="2"/><text x="40" y="35" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">PoE-Injektor</text><rect x="15" y="60" width="50" height="10" rx="2" fill="#cbd5e1"/><text x="40" y="80" textAnchor="middle" fontSize="8" fill="#64748b">230V</text></g><path d="M330 150 L420 150" stroke="#3b82f6" strokeWidth="2" fill="none" strokeDasharray="6,6"/><g transform="translate(420, 120)"><rect x="0" y="0" width="100" height="60" rx="8" fill="#ffffff" stroke="#94a3b8" strokeWidth="2"/><text x="50" y="80" textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="bold">Router</text></g></g>); default: return null; } }; return (<div className="w-full h-[200px] bg-blue-50/30 rounded-2xl border border-blue-100 flex items-center justify-center overflow-hidden relative mb-6"><svg viewBox="0 0 500 180" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">{renderContent()}</svg>{type === 'fiber' && (<div className="absolute top-2 right-2 flex gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-md"><button onClick={() => setFiberVariant('ont')} className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${fiberVariant === 'ont' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>ONT</button><button onClick={() => setFiberVariant('sfp')} className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${fiberVariant === 'sfp' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Direkt (SFP)</button></div>)}</div>); }
         const TechModal = ({ isOpen, onClose }) => { const [selected, setSelected] = useState('dsl'); if (!isOpen) return null; const TECHS = { dsl: { id: 'dsl', label: 'DSL / VDSL (Kupfer)', Icon: ICONS.Phone, desc: 'Datenübertragung über die klassische Kupfer-Telefonleitung (TAE-Dose). Nutzt VDSL- und Supervectoring-Technologien.', speed: 'bis 250 MBit/s', ping: 'Gut (10-20ms)', pros: ['Hohe Verfügbarkeit (fast überall in Deutschland)', 'Geringe Anschlusskosten','Konstante Leistung bei kurzer Leitungslänge'], cons: ['Geschwindigkeit stark leitungsabhängig','Maximaler Upload oft begrenzt','Frequenzstörungen möglich'] }, cable: { id: 'cable', label: 'Kabel (Koax-Netz)', Icon: ICONS.Tv, desc: 'Internet über das TV-Kabelnetz (Koax-3-Loch-Dose). Nutzt DOCSIS 3.1 / 4.0 Standard.', speed: 'bis 1000 MBit/s', ping: 'Mittel (15-30ms)', pros: ['Sehr hohe Downloads möglich','Geringere Auslastung im ländlichen Raum','Keine neue Verkabelung in der Wohnung nötig'], cons: ['Shared Medium (geteilte Bandbreite im Segment)','Geringere Stabilität als Glasfaser','Upload oft asynchron (deutlich langsamer)'] }, fiber: { id: 'fiber', label: 'Glasfaser (FTTH)', Icon: ICONS.Zap, desc: 'Datenübertragung per Lichtsignal über Glasfaser bis in die Wohnung (FTTH). Zukunftssicher und nahezu störungsfrei.', speed: 'bis 1000+ MBit/s', ping: 'Exzellent (<5ms)', pros: ['Höchste Geschwindigkeiten und Stabilität', 'Symmetrische Uploads möglich', 'Zukunftssicher und störungsarm'], cons: ['Geringere Verfügbarkeit (Netzausbau nötig)','Installationsaufwand in der Wohnung'] }, mobile: { id: 'mobile', label: '5G / LTE (Mobilfunk)', Icon: ICONS.Smartphone, desc: 'Internet über das Mobilfunknetz per SIM-Karte im Router (CPE). Ideal für Standorte ohne Festnetz-Alternative.', speed: 'bis 500 MBit/s', ping: 'Variabel', pros: ['Sofort startklar (Plug & Play)', 'Flexible Standortwahl (ohne Kabelbindung)','Gute Geschwindigkeiten in 5G-Gebieten'], cons: ['Empfangs- und wetterabhängig','Datenvolumenbegrenzung möglich (je nach Tarif)'] }, hybrid: { id: 'hybrid', label: 'Hybrid (DSL + LTE/5G)', Icon: ICONS.Layers, desc: 'Kombiniert die DSL-Leitung mit dem Mobilfunksignal (LTE/5G), um Geschwindigkeit und Ausfallsicherheit zu erhöhen (Bonding).', speed: 'DSL + Mobilfunk-Boost', ping: 'Wie DSL', pros: ['Höhere Geschwindigkeit als reines DSL möglich','Verbesserte Ausfallsicherheit (Bleibt online bei DSL-Störung)','Nutzt bestehende TAE-Verkabelung'], cons: ['Spezial-Hardware (Hybrid-Router) nötig','Geschwindigkeit des Mobilfunk-Anteils variabel'] }, sat: { id: 'sat', label: 'Satellit (Starlink/etc.)', Icon: ICONS.Disc, desc: 'Breitband-Internet über LEO-Satelliten. Geeignet für sehr ländliche oder schwer zugängliche Gebiete.', speed: '50-200 MBit/s', ping: 'Mittel (ca. 40-70ms)', pros: ['Überall verfügbar (unabhängig vom Leitungsnetz)','Hohe Downloadraten im Vergleich zu altem DSL'], cons: ['Sichtverbindung zum Himmel erforderlich','Wetterabhängige Schwankungen','Höhere Latenz als Festnetz'] } }; const active = TECHS[selected]; return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-white w-full max-w-5xl h-[650px] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-slate-200"><div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2 shrink-0 overflow-y-auto custom-scrollbar"><h3 className="font-black text-slate-800 text-lg mb-4 px-2">Technologie</h3>{Object.values(TECHS).map(t => (<button key={t.id} onClick={() => setSelected(t.id)} className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 border ${selected === t.id ? 'bg-white border-blue-500 shadow-sm ring-1 ring-blue-100' : 'border-transparent hover:bg-slate-100'}`}><div className={`p-1.5 rounded-lg ${selected===t.id ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'}`}><Icon d={t.Icon} size={16}/></div><span className={`text-sm ${selected===t.id ? 'font-bold text-blue-700' : 'font-medium text-slate-600'}`}>{t.label.split('(')[0].trim()}</span></button>))}<div className="mt-auto pt-4 border-t border-slate-200"><button onClick={onClose} className="w-full py-3 text-slate-400 font-bold text-xs uppercase tracking-wider hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">SCHLIESSEN</button></div></div><div className="flex-1 p-8 bg-white relative overflow-y-auto custom-scrollbar"><button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-slate-50 rounded-full text-slate-400"><Icon d={ICONS.X} size={24}/></button><div className="flex items-start gap-4 mb-6"><div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200"><Icon d={active.Icon} size={32}/></div><div><h2 className="text-3xl font-black text-slate-900 mb-1">{active.label}</h2><p className="text-slate-500 leading-relaxed max-w-lg">{active.desc}</p></div></div><TechVisualizer type={selected} /><div className="grid grid-cols-2 gap-4 mb-8"><div className="p-4 bg-slate-50 rounded-2xl border border-slate-100"><div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">MAX. GESCHWINDIGKEIT</div><div className="text-xl font-black text-blue-600">{active.speed}</div></div><div className="p-4 bg-slate-50 rounded-2xl border border-slate-100"><div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">LATENZ / PING (REAKTIONSZEIT)</div><div className="text-xl font-black text-slate-700">{active.ping}</div></div></div><div className="grid grid-cols-2 gap-8"><div><h4 className="font-bold text-emerald-600 flex items-center gap-2 mb-3"><Icon d={ICONS.CheckCircle} size={18}/> Vorteile</h4><ul className="space-y-2">{active.pros.map((p,i) => <li key={i} className="text-sm text-slate-600 flex gap-2"><span className="text-emerald-400">•</span> {p}</li>)}</ul></div><div><h4 className="font-bold text-amber-600 flex items-center gap-2 mb-3"><Icon d={ICONS.AlertCircle} size={18}/> Nachteile</h4><ul className="space-y-2">{active.cons.map((c,i) => <li key={i} className="text-sm text-slate-600 flex gap-2"><span className="text-amber-400">•</span> {c}</li>)}</ul></div></div></div></div></div>); };
         const RoamingModal = ({ isOpen, onClose }) => { const [zone, setZone] = useState('de_eu'); if (!isOpen) return null; const Node = ({ x, y, label, icon, active }) => (<g transform={`translate(${x},${y})`} className={active ? "opacity-100" : "opacity-40"}><circle r="30" fill={active ? "#eff6ff" : "#f1f5f9"} stroke={active ? "#3b82f6" : "#cbd5e1"} strokeWidth="2" /><text x="0" y="6" textAnchor="middle" fontSize="20">{icon}</text><text x="0" y="45" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#64748b">{label}</text></g>); return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
         <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[600px] border border-slate-200 relative">
-            {/* NEU: Schließen-Button oben rechts */}
             <button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 hover:bg-slate-100 rounded-full text-slate-500"><Icon d={ICONS.X} size={20}/></button>
             <div className="w-full md:w-72 bg-slate-50 border-r border-slate-200 flex flex-col">
                 <div className="p-6 border-b border-slate-200">
@@ -448,345 +489,70 @@
                 </div>
                 <div className="p-4 flex flex-col gap-2 overflow-y-auto">
                     <button onClick={()=>setZone('de_eu')} className={`p-4 rounded-lg text-left border transition-all group ${zone==='de_eu' ? 'bg-white border-blue-500 shadow-md' : 'border-transparent hover:bg-slate-100'}`}><div className="flex items-center justify-between mb-1"><span className="font-bold text-slate-700 text-sm">Telefonie ins Ausland</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">DE ➔ EU</span></div><div className="text-[11px] text-slate-500 leading-tight">Kostenanalyse für Anrufe von Deutschland in das EU-Ausland.</div></button><button onClick={()=>setZone('eu_roam')} className={`p-4 rounded-lg text-left border transition-all group ${zone==='eu_roam' ? 'bg-white border-blue-500 shadow-md' : 'border-transparent hover:bg-slate-100'}`}><div className="flex items-center justify-between mb-1"><span className="font-bold text-slate-700 text-sm">EU Roaming</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">EU ➔ DE</span></div><div className="text-[11px] text-slate-500 leading-tight">Nutzung des Tarifs im EU-Ausland (Reise).</div></button><button onClick={()=>setZone('world')} className={`p-4 rounded-lg text-left border transition-all group ${zone==='world' ? 'bg-white border-blue-500 shadow-md' : 'border-transparent hover:bg-slate-100'}`}><div className="flex items-center justify-between mb-1"><span className="font-bold text-slate-700 text-sm">Weltreise (Zone 3)</span><span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">World</span></div><div className="text-[11px] text-slate-500 leading-tight">Nutzung außerhalb der EU.</div></button></div>
-                {/* ENTFERNT: Alter Schließen-Button am unteren Rand 
-                <div className="mt-auto p-4 border-t border-slate-200">
-                    <button onClick={onClose} className="w-full py-2 text-slate-500 text-xs font-bold hover:text-slate-800 hover:bg-slate-100 rounded transition-colors">SCHLIESSEN</button>
-                </div>
-                */}
-            </div><div className="flex-1 bg-slate-50 relative flex flex-col"><div className="flex-1 bg-slate-50 relative"><svg viewBox="0 0 600 300" className="w-full h-full"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f1f5f9" strokeWidth="1"/></pattern><rect width="600" height="300" fill="url(#grid)" /><Node x="150" y="150" label="Deutschland" icon="🇩🇪" active={true} /><Node x="450" y="100" label="EU Ausland" icon="🇪🇺" active={zone !== 'world'} /><Node x="450" y="220" label="Weltweit (Zone 3)" icon="🌏" active={zone === 'world'} />{zone === 'de_eu' && (<g><path d="M 180 150 L 420 100" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 180 150 L 420 100" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><rect x="275" y="110" width="50" height="24" rx="12" fill="#ef4444" /><text x="300" y="126" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">0,29 €</text></g>)}{zone === 'eu_roam' && (<g><path d="M 420 100 L 180 150" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 420 100 L 180 150" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><circle cx="300" cy="125" r="14" fill="#22c55e" /><text x="300" y="130" textAnchor="middle" fill="white" fontSize="14">✓</text></g>)}{zone === 'world' && (<g><path d="M 420 220 L 180 150" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 420 220 L 180 150" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><path d="M 300 175 L 290 195 L 310 195 Z" fill="#f59e0b" stroke="#b45309" strokeWidth="2" /><text x="300" y="192" textAnchor="middle" fill="#78350f">!</text></g>)}</svg></div><div className="h-48 border-t border-slate-200 bg-white p-6 flex flex-col justify-center"><div className="flex items-start gap-4 max-w-2xl mx-auto w-full"><div class={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-xl ${zone === 'eu_roam' ? 'bg-emerald-100 text-emerald-600' : zone === 'de_eu' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>{zone === 'eu_roam' ? <Icon d={ICONS.CheckCircle} /> : <Icon d={ICONS.AlertCircle} />}</div><div><h3 class={`font-bold text-lg mb-1 ${zone === 'eu_roam' ? 'text-emerald-800' : zone === 'de_eu' ? 'text-blue-800' : 'text-amber-800'}`}>{zone === 'de_eu' && "Status: Kostenpflichtig (International Call)"}{zone === 'eu_roam' && "Status: Roam like at Home (Inklusive)"}{zone === 'world' && "Status: Kostenrisiko (Zone 2/3)"}</h3><div class="text-sm text-slate-600 leading-relaxed">{zone === 'de_eu' && "Kosten fallen an (z.B. 0,29 €/Min)."}{zone === 'eu_roam' && "Keine Mehrkosten im EU-Ausland."}{zone === 'world' && "Hohe Kosten möglich! Option buchen!"}</div></div></div></div></div></div></div>); };
+            </div><div className="flex-1 bg-slate-50 relative flex flex-col"><div className="flex-1 bg-slate-50 relative"><svg viewBox="0 0 600 300" className="w-full h-full"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f1f5f9" strokeWidth="1"/></pattern><rect width="600" height="300" fill="url(#grid)" /><Node x="150" y="150" label="Deutschland" icon="🇩🇪" active={true} /><Node x="450" y="100" label="EU Ausland" icon="🇪🇺" active={zone !== 'world'} /><Node x="450" y="220" label="Weltweit (Zone 3)" icon="🌏" active={zone === 'world'} />{zone === 'de_eu' && (<g><path d="M 180 150 L 420 100" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 180 150 L 420 100" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><rect x="275" y="110" width="50" height="24" rx="12" fill="#ef4444" /><text x="300" y="126" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">0,29 €</text></g>)}{zone === 'eu_roam' && (<g><path d="M 420 100 L 180 150" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 420 100 L 180 150" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><circle cx="300" cy="125" r="14" fill="#22c55e" /><text x="300" y="130" textAnchor="middle" fill="white" fontSize="14">✓</text></g>)}{zone === 'world' && (<g><path d="M 420 220 L 180 150" fill="none" stroke="#cbd5e1" strokeWidth="2" /><path d="M 420 220 L 180 150" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="10,10" className="flow-anim" /><path d="M 300 175 L 290 195 L 310 195 Z" fill="#f59e0b" stroke="#b45309" strokeWidth="2" /><text x="300" y="192" textAnchor="middle" fill="#78350f">!</text></g>)}</svg></div><div className="h-48 border-t border-slate-200 bg-white p-6 flex flex-col justify-center"><div className="flex items-start gap-4 max-w-2xl mx-auto w-full"><div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-xl ${zone === 'eu_roam' ? 'bg-emerald-100 text-emerald-600' : zone === 'de_eu' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>{zone === 'eu_roam' ? <Icon d={ICONS.CheckCircle} /> : <Icon d={ICONS.AlertCircle} />}</div><div><h3 className={`font-bold text-lg mb-1 ${zone === 'eu_roam' ? 'text-emerald-800' : zone === 'de_eu' ? 'text-blue-800' : 'text-amber-800'}`}>{zone === 'de_eu' && "Status: Kostenpflichtig (International Call)"}{zone === 'eu_roam' && "Status: Roam like at Home (Inklusive)"}{zone === 'world' && "Status: Kostenrisiko (Zone 2/3)"}</h3><div className="text-sm text-slate-600 leading-relaxed">{zone === 'de_eu' && "Kosten fallen an (z.B. 0,29 €/Min)."}{zone === 'eu_roam' && "Keine Mehrkosten im EU-Ausland."}{zone === 'world' && "Hohe Kosten möglich! Option buchen!"}</div></div></div></div></div></div></div>); };
         
-        // --- MODAL GRUND FÜR ÜBERSPRINGEN (SKIP REASON) ---
         const SkipReasonModal = ({ isOpen, onClose, onConfirm, reason, setReason, reasonMode, setReasonMode, drawnStrokes, setDrawnStrokes, canvasRef, startDrawing, draw, stopDrawing, MIN_LENGTH }) => {
             if (!isOpen) return null;
-            
             const isPen = reasonMode === 'pen';
-            
-            // Validation logic
             const keyboardValid = reason.trim().length >= MIN_LENGTH;
             const penValid = drawnStrokes['skip_reason']?.length > 0;
             const isValid = isPen ? penValid : keyboardValid;
-
-            const handleConfirm = () => {
-                const reasonData = isPen ? 'HANDWRITING (Grund per Stift erfasst)' : reason;
-                if (isValid) {
-                    onConfirm(reasonData);
-                }
-            };
-            
-            const clearCanvas = () => {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                const dpr = window.devicePixelRatio || 1;
-                ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-                setDrawnStrokes(prev => ({ ...prev, ['skip_reason']: [] }));
-            };
-            
-            // Redraw effect for the skipReasonCanvas when in pen mode (to ensure it clears when needed)
-            useEffect(() => {
-                if (!isOpen || !isPen || !canvasRef.current || !drawnStrokes['skip_reason']) return;
-                redrawCanvas(canvasRef.current, drawnStrokes['skip_reason'], 1, 'skip_reason');
-            }, [isOpen, isPen, drawnStrokes['skip_reason']]);
-
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200">
-                        <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2">
-                            <Icon d={ICONS.AlertCircle} size={24} className="text-amber-600"/> Grund für Überspringen
-                        </h3>
-                        
-                        <p className="text-sm text-slate-600 mb-4">
-                            Bitte geben Sie kurz an, warum die Situation-Analyse übersprungen wird (min. {MIN_LENGTH} Buchstaben/Stift-Eintrag).
-                        </p>
-
-                        <div className="relative w-full h-32 border border-slate-300 rounded-lg bg-slate-50 overflow-hidden">
-                            <div className="absolute top-2 right-2 z-20 flex gap-1">
-                                <button onClick={() => setReasonMode(p => p === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={reasonMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}>
-                                    <Icon d={reasonMode === 'keyboard' ? ICONS.Pen : ICONS.Keyboard} size={16}/>
-                                </button>
-                                {isPen && drawnStrokes['skip_reason']?.length > 0 && (
-                                    <button onClick={clearCanvas} className="p-1 hover:bg-slate-200 rounded text-slate-400" title="Löschen"><Icon d={ICONS.Trash} size={16}/></button>
-                                )}
-                            </div>
-                            
-                            {isPen ? (
-                                <canvas 
-                                    ref={canvasRef} 
-                                    className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" 
-                                    style={{ touchAction: 'none' }}
-                                    onPointerDown={(e) => startDrawing(e, canvasRef, 'skip_reason')}
-                                    onPointerMove={(e) => draw(e, canvasRef, 'skip_reason')}
-                                    onPointerUp={(e) => stopDrawing(e, canvasRef)}
-                                    onPointerLeave={(e) => stopDrawing(e, canvasRef)}
-                                />
-                            ) : (
-                                <textarea
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    placeholder="Grund hier eingeben..."
-                                    className="w-full h-full p-4 text-base font-medium text-slate-700 bg-transparent resize-none focus:ring-0 focus:outline-none pr-12"
-                                    autoFocus
-                                    maxLength={100}
-                                />
-                            )}
-                        </div>
-                        
-                        <div className="flex justify-between items-center mt-4">
-                            <span className={`text-xs font-bold transition-colors ${isValid ? 'text-green-600' : 'text-red-500'}`}>
-                                {isValid ? 'Anforderung erfüllt.' : `Mind. ${MIN_LENGTH} Buchstaben erforderlich.`}
-                            </span>
-                            <div className="flex gap-2">
-                                <button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button>
-                                <button 
-                                    onClick={handleConfirm} 
-                                    className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isValid ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} 
-                                    disabled={!isValid}
-                                >
-                                    Bestätigen & Springen <Icon d={ICONS.ArrowRight} size={16}/>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
+            const handleConfirm = () => { const reasonData = isPen ? 'HANDWRITING (Grund per Stift erfasst)' : reason; if (isValid) { onConfirm(reasonData); } };
+            const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, ['skip_reason']: [] })); };
+            useEffect(() => { if (!isOpen || !isPen || !canvasRef.current || !drawnStrokes['skip_reason']) return; redrawCanvas(canvasRef.current, drawnStrokes['skip_reason'], 1, 'skip_reason'); }, [isOpen, isPen, drawnStrokes['skip_reason']]);
+            return (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.AlertCircle} size={24} className="text-amber-600"/> Grund für Überspringen</h3><p className="text-sm text-slate-600 mb-4">Bitte geben Sie kurz an, warum die Situation-Analyse übersprungen wird (min. {MIN_LENGTH} Buchstaben/Stift-Eintrag).</p><div className="relative w-full h-32 border border-slate-300 rounded-lg bg-slate-50 overflow-hidden"><div className="absolute top-2 right-2 z-20 flex gap-1"><button onClick={() => setReasonMode(p => p === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={reasonMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}><Icon d={reasonMode === 'keyboard' ? ICONS.Pen : ICONS.Keyboard} size={16}/></button>{isPen && drawnStrokes['skip_reason']?.length > 0 && (<button onClick={clearCanvas} className="p-1 hover:bg-slate-200 rounded text-slate-400" title="Löschen"><Icon d={ICONS.Trash} size={16}/></button>)}</div>{isPen ? (<canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, canvasRef, 'skip_reason')} onPointerMove={(e) => draw(e, canvasRef, 'skip_reason')} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)}/>) : (<textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Grund hier eingeben..." className="w-full h-full p-4 text-base font-medium text-slate-700 bg-transparent resize-none focus:ring-0 focus:outline-none pr-12" autoFocus maxLength={100}/>)}</div><div className="flex justify-between items-center mt-4"><span className={`text-xs font-bold transition-colors ${isValid ? 'text-green-600' : 'text-red-500'}`}>{isValid ? 'Anforderung erfüllt.' : `Mind. ${MIN_LENGTH} Buchstaben erforderlich.`}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleConfirm} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isValid ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!isValid}>Bestätigen & Springen <Icon d={ICONS.ArrowRight} size={16}/></button></div></div></div></div>);
         };
         
-        // --- ADMIN MODAL UPDATE ---
         const AdminModal = ({ isOpen, onClose, questions, onUpdate, oneDriveLink, onUpdateLink }) => { 
             const [localData, setLocalData] = useState(questions); 
             const [localLink, setLocalLink] = useState(oneDriveLink || '');
             const [expandedCat, setExpandedCat] = useState(null); 
-            
-            useEffect(() => { 
-                setLocalData(questions); 
-                setLocalLink(oneDriveLink || '');
-            }, [questions, oneDriveLink, isOpen]); 
-            
-            const handleQuestionChange = (cat, index, val) => { 
-                const newQs = [...(localData[cat] || [])]; 
-                newQs[index] = val; 
-                setLocalData(prev => ({ ...prev, [cat]: newQs.filter(q => q.trim() !== '') })); // Filter out empty strings on change
-            }; 
-            const handleAddQuestion = (cat) => { 
-                const newQs = [...(localData[cat] || []), "Neue Frage..."]; 
-                setLocalData(prev => ({ ...prev, [cat]: newQs })); 
-            }; 
-            
-            const handleSave = () => { 
-                // Filter out empty questions before saving
-                const cleanedData = Object.keys(localData).reduce((acc, cat) => {
-                    acc[cat] = localData[cat].filter(q => q.trim() !== '');
-                    return acc;
-                }, {});
-                
-                Object.keys(cleanedData).forEach(cat => onUpdate(cat, cleanedData[cat])); 
-                if (onUpdateLink) onUpdateLink(localLink.trim());
-                onClose(); 
-            }; 
-            
+            useEffect(() => { setLocalData(questions); setLocalLink(oneDriveLink || ''); }, [questions, oneDriveLink, isOpen]); 
+            const handleQuestionChange = (cat, index, val) => { const newQs = [...(localData[cat] || [])]; newQs[index] = val; setLocalData(prev => ({ ...prev, [cat]: newQs.filter(q => q.trim() !== '') })); }; 
+            const handleAddQuestion = (cat) => { const newQs = [...(localData[cat] || []), "Neue Frage..."]; setLocalData(prev => ({ ...prev, [cat]: newQs })); }; 
+            const handleSave = () => { const cleanedData = Object.keys(localData).reduce((acc, cat) => { acc[cat] = localData[cat].filter(q => q.trim() !== ''); return acc; }, {}); Object.keys(cleanedData).forEach(cat => onUpdate(cat, cleanedData[cat])); if (onUpdateLink) onUpdateLink(localLink.trim()); onClose(); }; 
             if (!isOpen) return null; 
-            
-            return ( 
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"> 
-                    <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"> 
-                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
-                            <h3 className="font-bold text-lg flex items-center gap-2 text-slate-800"><Icon d={ICONS.Lock} size={18}/> Admin: Fragen & Links</h3>
-                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><Icon d={ICONS.X} size={18}/></button>
-                        </div> 
-                        
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"> 
-                            {/* NEW: Link Section */}
-                            <div className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm">
-                                <h4 className="font-bold text-slate-700 mb-2 text-sm flex items-center gap-2">
-                                    <Icon d={ICONS.Book} size={16} className="text-blue-500"/> Link zur Aktionsmappe (OneDrive)
-                                </h4>
-                                <input
-                                    type="url"
-                                    value={localLink}
-                                    onChange={(e) => setLocalLink(e.target.value)}
-                                    placeholder="https://..."
-                                    className="w-full border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none text-slate-600"
-                                />
-                                <p className="text-[10px] text-slate-400 mt-1">Dieser Link wird beim Klick auf das Buch-Icon (Angebotsseite) geöffnet.</p>
-                            </div>
-
-                            <div className="border-t border-slate-100 pt-2">
-                                <h4 className="font-bold text-slate-700 mb-4 text-sm">Fragenkatalog bearbeiten</h4>
-                                <div className="space-y-4">
-                                    {Object.keys(localData).map(cat => ( 
-                                        <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden">
-                                            <button onClick={() => setExpandedCat(expandedCat === cat ? null : cat)} className={`w-full p-3 text-left font-bold flex justify-between items-center ${expandedCat === cat ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
-                                                <span>{cat === 'default' ? 'Standard Fragen' : cat}</span>
-                                                <Icon d={expandedCat === cat ? ICONS.ArrowLeft : ICONS.ArrowRight} className={`transform transition-transform ${expandedCat === cat ? '-rotate-90' : 'rotate-90'}`} size={16}/>
-                                            </button> 
-                                            {expandedCat === cat && (
-                                                <div className="p-4 bg-slate-50/50 space-y-2 border-t border-slate-100">
-                                                    {localData[cat].map((q, i) => (
-                                                        <div key={i} className="flex gap-2">
-                                                            <input className="flex-1 border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none" value={q} onChange={(e) => handleQuestionChange(cat, i, e.target.value)} />
-                                                            <button onClick={() => handleQuestionChange(cat, i, '')} className="p-2 text-red-400 hover:bg-red-100 rounded" title="Frage löschen"><Icon d={ICONS.Trash} size={16}/></button>
-                                                        </div>
-                                                    ))}
-                                                    <button onClick={() => handleAddQuestion(cat)} className="text-xs font-bold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1"><Icon d={ICONS.Plus} size={14}/> Frage hinzufügen</button>
-                                                </div>
-                                            )} 
-                                        </div> 
-                                    ))} 
-                                </div>
-                            </div>
-                        </div> 
-                        
-                        <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 rounded-b-xl">
-                            <button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-200 rounded-lg transition-colors">Abbrechen</button>
-                            <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">Alle Speichern</button>
-                        </div> 
-                    </div> 
-                </div> 
-            ); 
+            return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"> <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"> <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl"><h3 className="font-bold text-lg flex items-center gap-2 text-slate-800"><Icon d={ICONS.Lock} size={18}/> Admin: Fragen & Links</h3><button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><Icon d={ICONS.X} size={18}/></button></div> <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"> <div className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm"><h4 className="font-bold text-slate-700 mb-2 text-sm flex items-center gap-2"><Icon d={ICONS.Book} size={16} className="text-blue-500"/> Link zur Aktionsmappe (OneDrive)</h4><input type="url" value={localLink} onChange={(e) => setLocalLink(e.target.value)} placeholder="https://..." className="w-full border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none text-slate-600"/><p className="text-[10px] text-slate-400 mt-1">Dieser Link wird beim Klick auf das Buch-Icon (Angebotsseite) geöffnet.</p></div><div className="border-t border-slate-100 pt-2"><h4 className="font-bold text-slate-700 mb-4 text-sm">Fragenkatalog bearbeiten</h4><div className="space-y-4">{Object.keys(localData).map(cat => ( <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden"><button onClick={() => setExpandedCat(expandedCat === cat ? null : cat)} className={`w-full p-3 text-left font-bold flex justify-between items-center ${expandedCat === cat ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'}`}><span>{cat === 'default' ? 'Standard Fragen' : cat}</span><Icon d={expandedCat === cat ? ICONS.ArrowLeft : ICONS.ArrowRight} className={`transform transition-transform ${expandedCat === cat ? '-rotate-90' : 'rotate-90'}`} size={16}/></button> {expandedCat === cat && (<div className="p-4 bg-slate-50/50 space-y-2 border-t border-slate-100">{localData[cat].map((q, i) => (<div key={i} className="flex gap-2"><input className="flex-1 border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none" value={q} onChange={(e) => handleQuestionChange(cat, i, e.target.value)} /><button onClick={() => handleQuestionChange(cat, i, '')} className="p-2 text-red-400 hover:bg-red-100 rounded" title="Frage löschen"><Icon d={ICONS.Trash} size={16}/></button></div>))}<button onClick={() => handleAddQuestion(cat)} className="text-xs font-bold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1"><Icon d={ICONS.Plus} size={14}/> Frage hinzufügen</button></div>)} </div> ))} </div></div></div> <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 rounded-b-xl"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-200 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">Alle Speichern</button></div> </div> </div> ); 
         };
 
         const QuestionModal = ({ isOpen, onClose, category, question, onNextQuestion }) => { if (!isOpen) return null; return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6"><h3 className="text-xl font-bold mb-4">Frage zu: {category}</h3><p className="text-lg mb-6">{question}</p><div className="flex justify-end gap-2"><button onClick={onNextQuestion} className="px-4 py-2 border rounded">Nächste</button><button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded">OK</button></div></div></div>); };
 
-        // --- OFFER CANVAS ---
-        const redrawCanvas = (canvas, strokes, scaleFactor = 1, key = '') => { if (!canvas) return; const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1)); ctx.save(); const isOfferCanvas = key.startsWith('offer') || key.startsWith('cost_') || key.startsWith('agent_') || key.startsWith('date_') || key.startsWith('signature'); strokes.forEach(stroke => { ctx.beginPath(); const rectW = canvas.getBoundingClientRect().width;                         // During print/layout the DOM can briefly report 0 width -> would kill scaling and make strokes invisible.                         // Fallback chain: rect width -> stored baseWidth -> canvas pixel width (CSS) -> 1                         const fallbackCssW = (canvas.width / (window.devicePixelRatio || 1)) || 1;                         const currentCssWidth = (rectW && rectW > 1) ? rectW : (stroke.baseWidth && stroke.baseWidth > 1 ? stroke.baseWidth : fallbackCssW);                         let responsiveScaleFactor = currentCssWidth / (stroke.baseWidth || currentCssWidth);                         if (!isFinite(responsiveScaleFactor) || responsiveScaleFactor <= 0) responsiveScaleFactor = 1; const rawStrokeWidth = stroke.width; let visualBaseWidth; if (isOfferCanvas) { visualBaseWidth = rawStrokeWidth === 2 ? 2.5 : rawStrokeWidth === 4 ? 5 : 8; } else { visualBaseWidth = rawStrokeWidth === 2 ? 2 : rawStrokeWidth === 4 ? 3 : 5; } const normalizedBaseLineWidth = (visualBaseWidth * responsiveScaleFactor); if (stroke.tool === 'eraser') { ctx.lineWidth = normalizedBaseLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (stroke.tool === 'highlighter') { ctx.lineWidth = normalizedBaseLineWidth * 3; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = normalizedBaseLineWidth; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'source-over'; } if (stroke.points.length > 0) { const startX = stroke.points[0].x * responsiveScaleFactor; const startY = stroke.points[0].y * responsiveScaleFactor; ctx.moveTo(startX, startY); stroke.points.slice(1).forEach(point => { const lineToX = point.x * responsiveScaleFactor; const lineToY = point.y * responsiveScaleFactor; ctx.lineTo(lineToX, lineToY); }); } ctx.stroke(); }); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; };
+        // --- OFFER CANVAS (Redraw Patch Applied) ---
+        const redrawCanvas = (canvas, strokes, scaleFactor = 1, key = '') => { 
+            if (!canvas) return; 
+            const ctx = canvas.getContext('2d'); 
+            ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1)); 
+            ctx.save(); 
+            const isOfferCanvas = key.startsWith('offer') || key.startsWith('cost_') || key.startsWith('agent_') || key.startsWith('date_') || key.startsWith('signature'); 
+            strokes.forEach(stroke => { 
+                ctx.beginPath(); 
+                let currentCssWidth = canvas.getBoundingClientRect().width; 
+                if (currentCssWidth === 0) currentCssWidth = stroke.baseWidth || 100; // FIX: Print Fallback
+                const responsiveScaleFactor = currentCssWidth / (stroke.baseWidth || currentCssWidth); 
+                const rawStrokeWidth = stroke.width; 
+                let visualBaseWidth; 
+                if (isOfferCanvas) { visualBaseWidth = rawStrokeWidth === 2 ? 2.5 : rawStrokeWidth === 4 ? 5 : 8; } else { visualBaseWidth = rawStrokeWidth === 2 ? 2 : rawStrokeWidth === 4 ? 3 : 5; } 
+                const normalizedBaseLineWidth = (visualBaseWidth * responsiveScaleFactor); 
+                if (stroke.tool === 'eraser') { ctx.lineWidth = normalizedBaseLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (stroke.tool === 'highlighter') { ctx.lineWidth = normalizedBaseLineWidth * 3; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = normalizedBaseLineWidth; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'source-over'; } 
+                if (stroke.points.length > 0) { const startX = stroke.points[0].x * responsiveScaleFactor; const startY = stroke.points[0].y * responsiveScaleFactor; ctx.moveTo(startX, startY); stroke.points.slice(1).forEach(point => { const lineToX = point.x * responsiveScaleFactor; const lineToY = point.y * responsiveScaleFactor; ctx.lineTo(lineToX, lineToY); }); } 
+                ctx.stroke(); 
+            }); 
+            ctx.restore(); 
+            ctx.globalCompositeOperation = 'source-over'; 
+            ctx.globalAlpha = 1; 
+        };
 
         const OfferCanvas = React.memo(({ canvasRef, label, icon, statusKey, status, setStatus, inputMode, startDrawing, draw, stopDrawing, textValue, handleTextChange, textStyle, textSize, drawnStrokes, setDrawnStrokes, scaleRef, triggerRedraw, image, onClearImage, imageTransform, onUpdateImageTransform }) => { const SIZE_DIFFERENCE_THRESHOLD = 5; const toggleStatus = (newStatus) => { setStatus(prev => ({ ...prev, [statusKey]: prev[statusKey] === newStatus ? 'neutral' : newStatus })); }; const isOpen = status === 'open'; const isClosed = status === 'closed'; let statusClass = 'border-slate-300'; if (isOpen) statusClass = 'border-red-500 ring-4 ring-red-100/50'; else if (isClosed) statusClass = 'border-green-500 ring-4 ring-green-100/50'; const containerClasses = `offer-canvas-container ${statusClass} flex flex-col min-h-[600px]`; const getOfferTextClasses = () => { let classes = "absolute inset-0 w-full h-full p-4 bg-transparent resize-none focus:ring-0 focus:outline-none z-30 leading-relaxed "; if (textSize === 'small') classes += "text-base "; else if (textSize === 'medium') classes += "text-lg "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; classes += inputMode === 'pen' ? 'pointer-events-none text-slate-800' : 'pointer-events-auto text-slate-800'; return classes; }; useEffect(() => { const canvas = canvasRef.current; if (!canvas || !drawnStrokes) return; const rect = canvas.getBoundingClientRect(); const currentWidth = rect.width; let baseWidth = scaleRef.current.baseWidth; if (baseWidth === 0) { scaleRef.current.baseWidth = currentWidth; baseWidth = currentWidth; } const scaleFactor = currentWidth / baseWidth; redrawCanvas(canvas, drawnStrokes, scaleFactor, statusKey); if (Math.abs(currentWidth - baseWidth) > SIZE_DIFFERENCE_THRESHOLD) { scaleRef.current.baseWidth = currentWidth; } }, [canvasRef, drawnStrokes, triggerRedraw]); useEffect(() => { const canvas = canvasRef.current; if (canvas && scaleRef.current.baseWidth === 0) { const rect = canvas.getBoundingClientRect(); scaleRef.current.baseWidth = rect.width; } }, [canvasRef]); const isPenMode = inputMode === 'pen'; const { x, y, scale, rotation } = imageTransform; 
         const interactionStateRef = useRef({ isDragging: false, isScaling: false, startX: 0, startY: 0, initialX: 0, initialY: 0, initialScale: 1.0, initialDistance: 0, initialRotation: 0, initialAngle: 0, mode: null });
         const pointerCacheRef = useRef({}); 
         const getClientCoords = (e) => { const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; return { clientX, clientY }; }; 
-        
-        const handleInteractionStart = useCallback((e) => { 
-            if (!isPenMode || !image) return; 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            const { clientX, clientY } = getClientCoords(e); 
-            if (clientX === undefined || clientY === undefined) return; 
-            pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; 
-            const pointerIds = Object.keys(pointerCacheRef.current); 
-            
-            if (pointerIds.length === 1) { 
-                interactionStateRef.current = { 
-                    isDragging: true, isScaling: false, 
-                    startX: clientX, startY: clientY, 
-                    initialX: x, initialY: y, 
-                    initialScale: scale, initialRotation: rotation, 
-                    initialDistance: 0, initialAngle: 0, 
-                    mode: 'drag' 
-                }; 
-            } else if (pointerIds.length >= 2) { 
-                const [id1, id2] = pointerIds; 
-                const p1 = pointerCacheRef.current[id1]; 
-                const p2 = pointerCacheRef.current[id2]; 
-                const initialDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-                const initialAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); // Angle in radians
-                
-                interactionStateRef.current = { 
-                    isDragging: false, isScaling: true, 
-                    initialDistance: initialDistance, 
-                    initialScale: scale, 
-                    initialRotation: rotation, 
-                    initialAngle: initialAngle,
-                    mode: 'scale' 
-                }; 
-            } else { 
-                interactionStateRef.current.mode = null; 
-            } 
-            e.target.setPointerCapture(e.pointerId); 
-        }, [isPenMode, image, x, y, scale, rotation]); 
-        
-        const handleInteractionMove = useCallback((e) => { 
-            if (!image) return; 
-            const { clientX, clientY } = getClientCoords(e); 
-            if (clientX === undefined || clientY === undefined) return; 
-            pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; 
-            const pointerIds = Object.keys(pointerCacheRef.current); 
-            const mode = interactionStateRef.current.mode; 
-            
-            if (pointerIds.length === 1 && mode === 'drag') { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                const { startX, startY, initialX, initialY } = interactionStateRef.current; 
-                const dx = clientX - startX; 
-                const dy = clientY - startY; 
-                onUpdateImageTransform(statusKey, { x: initialX + dx, y: initialY + dy }); 
-            } else if (pointerIds.length >= 2 && mode === 'scale') { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                
-                const { initialDistance, initialScale, initialRotation, initialAngle } = interactionStateRef.current;
-                const relevantIds = Object.keys(pointerCacheRef.current).slice(0, 2);
-                const p1 = pointerCacheRef.current[relevantIds[0]];
-                const p2 = pointerCacheRef.current[relevantIds[1]];
-                if (!p1 || !p2) return;
-
-                // 1. SCALING
-                const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-                const ratio = currentDistance / initialDistance;
-                let newScale = initialScale * ratio;
-                newScale = Math.min(2.5, Math.max(0.25, newScale));
-                newScale = Math.round(newScale * 100) / 100;
-
-                // 2. ROTATION (NEW)
-                const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                const angleDelta = currentAngle - initialAngle;
-                const rotationDeltaDeg = angleDelta * (180 / Math.PI);
-                let newRotation = (initialRotation + rotationDeltaDeg);
-                newRotation = Math.round(newRotation * 10) / 10; // Keep one decimal place
-
-                if (newScale !== scale || newRotation !== rotation) {
-                    onUpdateImageTransform(statusKey, { scale: newScale, rotation: newRotation });
-                }
-
-            } 
-        }, [image, onUpdateImageTransform, statusKey, scale, rotation]); 
-        
-        const handleInteractionEnd = useCallback((e) => { 
-            e.target.releasePointerCapture(e.pointerId); 
-            delete pointerCacheRef.current[e.pointerId]; 
-            const pointerIds = Object.keys(pointerCacheRef.current); 
-            
-            if (pointerIds.length === 0) { 
-                interactionStateRef.current.mode = null; 
-                interactionStateRef.current.isDragging = false; 
-                interactionStateRef.current.isScaling = false; 
-            } else if (pointerIds.length === 1) { 
-                const remainingId = pointerIds[0]; 
-                const p = pointerCacheRef.current[remainingId]; 
-                interactionStateRef.current = { 
-                    isDragging: true, isScaling: false, 
-                    startX: p.x, startY: p.y, 
-                    initialX: x, initialY: y, 
-                    initialScale: scale, initialRotation: rotation,
-                    initialDistance: 0, initialAngle: 0,
-                    mode: 'drag' 
-                }; 
-            } else if (pointerIds.length >= 2) { 
-                const relevantIds = pointerIds.slice(0, 2); 
-                const p1 = pointerCacheRef.current[relevantIds[0]]; 
-                const p2 = pointerCacheRef.current[relevantIds[1]]; 
-                
-                // Recalculate initial state based on current state
-                const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-                const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-                interactionStateRef.current = {
-                    isDragging: false,
-                    isScaling: true,
-                    initialDistance: currentDistance,
-                    initialScale: scale,
-                    initialRotation: rotation,
-                    initialAngle: currentAngle,
-                    mode: 'scale'
-                };
-            } 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-        }, [x, y, scale, rotation]); 
-        
+        const handleInteractionStart = useCallback((e) => { if (!isPenMode || !image) return; e.preventDefault(); e.stopPropagation(); const { clientX, clientY } = getClientCoords(e); if (clientX === undefined || clientY === undefined) return; pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; const pointerIds = Object.keys(pointerCacheRef.current); if (pointerIds.length === 1) { interactionStateRef.current = { isDragging: true, isScaling: false, startX: clientX, startY: clientY, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' }; } else if (pointerIds.length >= 2) { const [id1, id2] = pointerIds; const p1 = pointerCacheRef.current[id1]; const p2 = pointerCacheRef.current[id2]; const initialDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const initialAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: initialDistance, initialScale: scale, initialRotation: rotation, initialAngle: initialAngle, mode: 'scale' }; } else { interactionStateRef.current.mode = null; } e.target.setPointerCapture(e.pointerId); }, [isPenMode, image, x, y, scale, rotation]); 
+        const handleInteractionMove = useCallback((e) => { if (!image) return; const { clientX, clientY } = getClientCoords(e); if (clientX === undefined || clientY === undefined) return; pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; const pointerIds = Object.keys(pointerCacheRef.current); const mode = interactionStateRef.current.mode; if (pointerIds.length === 1 && mode === 'drag') { e.preventDefault(); e.stopPropagation(); const { startX, startY, initialX, initialY } = interactionStateRef.current; const dx = clientX - startX; const dy = clientY - startY; onUpdateImageTransform(statusKey, { x: initialX + dx, y: initialY + dy }); } else if (pointerIds.length >= 2 && mode === 'scale') { e.preventDefault(); e.stopPropagation(); const { initialDistance, initialScale, initialRotation, initialAngle } = interactionStateRef.current; const relevantIds = Object.keys(pointerCacheRef.current).slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; if (!p1 || !p2) return; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const ratio = currentDistance / initialDistance; let newScale = initialScale * ratio; newScale = Math.min(2.5, Math.max(0.25, newScale)); newScale = Math.round(newScale * 100) / 100; const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); const angleDelta = currentAngle - initialAngle; const rotationDeltaDeg = angleDelta * (180 / Math.PI); let newRotation = (initialRotation + rotationDeltaDeg); newRotation = Math.round(newRotation * 10) / 10; if (newScale !== scale || newRotation !== rotation) { onUpdateImageTransform(statusKey, { scale: newScale, rotation: newRotation }); } } }, [image, onUpdateImageTransform, statusKey, scale, rotation]); 
+        const handleInteractionEnd = useCallback((e) => { e.target.releasePointerCapture(e.pointerId); delete pointerCacheRef.current[e.pointerId]; const pointerIds = Object.keys(pointerCacheRef.current); if (pointerIds.length === 0) { interactionStateRef.current.mode = null; interactionStateRef.current.isDragging = false; interactionStateRef.current.isScaling = false; } else if (pointerIds.length === 1) { const remainingId = pointerIds[0]; const p = pointerCacheRef.current[remainingId]; interactionStateRef.current = { isDragging: true, isScaling: false, startX: p.x, startY: p.y, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' }; } else if (pointerIds.length >= 2) { const relevantIds = pointerIds.slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: currentDistance, initialScale: scale, initialRotation: rotation, initialAngle: currentAngle, mode: 'scale' }; } e.preventDefault(); e.stopPropagation(); }, [x, y, scale, rotation]); 
         const handleImageReset = () => { onUpdateImageTransform(statusKey, { x: 0, y: 0, scale: 1.0, rotation: 0 }); }; 
-        
         return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{image && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={handleImageReset} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}{image && (<button onClick={onClearImage} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eingefügtes Bild entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div></div><div className="canvas-lines"></div>{image && (<div className="absolute inset-0 z-20" onPointerDown={isPenMode ? handleInteractionStart : undefined} onPointerMove={isPenMode ? handleInteractionMove : undefined} onPointerUp={isPenMode ? handleInteractionEnd : undefined} onPointerCancel={isPenMode ? handleInteractionEnd : undefined} onPointerLeave={isPenMode ? handleInteractionEnd : undefined} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: isPenMode ? (interactionStateRef.current.mode === 'drag' ? 'grabbing' : interactionStateRef.current.mode === 'scale' ? 'crosshair' : 'grab') : 'default', pointerEvents: isPenMode ? 'auto' : 'none', touchAction: 'none' }}><img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 0.7 }}/></div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
         
+        // --- SMALL INPUT CANVAS (Patched with drawing-canvas class) ---
         const SmallInputCanvas = ({ inputMode, canvasRef, inputKey, inputValue, inputType = 'text', onChange, placeholder, drawnStrokes, setDrawnStrokes, readOnly = false, startDrawing, draw, stopDrawing }) => { const isPen = inputMode === 'pen'; useEffect(() => { const canvas = canvasRef.current; if (!canvas) return; if (isPen) { redrawCanvas(canvas, drawnStrokes[inputKey], 1, inputKey); } }, [isPen, drawnStrokes, inputKey]); const clearSmallCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, [inputKey]: [] })); }; return (<div className="small-canvas-wrapper h-full relative flex items-center border-none">{isPen ? (<><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, inputKey)} onPointerMove={(e) => draw(e, canvasRef, inputKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ pointerEvents: 'auto', touchAction: 'none' }}/>{drawnStrokes[inputKey]?.length > 0 && (<button onClick={clearSmallCanvas} className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded text-slate-400 z-20" title="Löschen"><Icon d={ICONS.Trash} size={14}/></button>)}</>) : (<input type={inputType} value={inputValue} onChange={onChange} readOnly={readOnly} placeholder={placeholder} className="w-full h-full p-2 text-sm font-medium text-slate-700 bg-transparent focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none" style={{ fontSize: '15px', paddingLeft: '8px', opacity: isPen ? 0.5 : 1, pointerEvents: isPen ? 'none' : 'auto' }}/>)}</div>); };
 
         // --- MAIN APP ---
@@ -848,11 +614,10 @@
             const [showTechModal, setShowTechModal] = useState(false);
             const [showRoamingModal, setShowRoamingModal] = useState(false);
             const [showSignatureModal, setShowSignatureModal] = useState(false);
+            const [showFinishTypeModal, setShowFinishTypeModal] = useState(false); // NEW MODAL STATE
             
-            // NEU: REFERRAL MODAL STATE
             const [showReferralModal, setShowReferralModal] = useState(false);
             
-            // NEUE STATES FÜR SKIP MODAL
             const [showSkipReasonModal, setShowSkipReasonModal] = useState(false); 
             const [skipReason, setSkipReason] = useState(''); 
             const [skipReasonMode, setSkipReasonMode] = useState('keyboard'); 
@@ -877,7 +642,6 @@
             
             const [customerSignature, setCustomerSignature] = useState(null); 
             
-            // AKTUALISIERTER STATE: Jetzt mit Rotation
             const [imageTransform, setImageTransform] = useState({ 
                 offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, 
                 offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, 
@@ -911,122 +675,48 @@
             const [isImageSelectModalOpen, setIsImageSelectModalOpen] = useState(false);
             const [currentImagePayload, setCurrentImagePayload] = useState(null);
             
-            const getDisplayText = useCallback((key) => { 
-                const defaultText = textData[key] || ''; 
-                if (displayLanguage === 'de') return defaultText; 
-                
-                // Prioritize user-entered text translations if available
-                const translation = translatedText[displayLanguage]?.[key]; 
-                
-                // Fallback to mock translation if user hasn't typed anything yet or specific translation missing
-                if (!translation && MOCK_TRANSLATIONS[displayLanguage]?.[key]) {
-                    return MOCK_TRANSLATIONS[displayLanguage][key];
-                }
-
-                return translation || defaultText; 
-            }, [textData, translatedText, displayLanguage]);
+            const getDisplayText = useCallback((key) => { const defaultText = textData[key] || ''; if (displayLanguage === 'de') return defaultText; const translation = translatedText[displayLanguage]?.[key]; if (!translation && MOCK_TRANSLATIONS[displayLanguage]?.[key]) { return MOCK_TRANSLATIONS[displayLanguage][key]; } return translation || defaultText; }, [textData, translatedText, displayLanguage]);
             
-            const getStaticLabel = useCallback((key) => { 
-                if (displayLanguage === 'de') return STATIC_LABELS[key] || key; 
-                
-                // Priority: Local Mock Static Label -> User Static Translation -> Default German
-                return staticTranslations[displayLanguage]?.[key] 
-                    || MOCK_TRANSLATIONS[displayLanguage]?.[key] 
-                    || STATIC_LABELS[key] 
-                    || key; 
-            }, [staticTranslations, displayLanguage]);
+            const getStaticLabel = useCallback((key) => { if (displayLanguage === 'de') return STATIC_LABELS[key] || key; return staticTranslations[displayLanguage]?.[key] || MOCK_TRANSLATIONS[displayLanguage]?.[key] || STATIC_LABELS[key] || key; }, [staticTranslations, displayLanguage]);
 
             const triggerToast = (message) => { clearTimeout(toastTimerRef.current); setToastMessage(message); toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000); };
             const openOneDriveLink = () => { if (oneDriveLink && oneDriveLink.startsWith('http')) { window.open(oneDriveLink, '_blank'); triggerToast('Aktionsmappe geöffnet.'); } else { triggerToast('WICHTIG: Kein gültiger OneDrive Link hinterlegt. Bitte pflegen Sie den Link in den Einstellungen.'); } };
             const handleFileSelect = (event) => { const file = event.target.files?.[0]; event.target.value = null; setRedrawCounter(r => r + 1); if (!file) { triggerToast('Datei-Auswahl abgebrochen.'); return; } if (!file.type.startsWith('image/') && !file.type.includes('pdf')) { triggerToast(`Datei "${file.name}" ausgewählt. Nur Bilder werden visuell platziert.`); return; } const reader = new FileReader(); reader.onload = (e) => { const imageDataUrl = e.target.result; setCurrentImagePayload({ url: imageDataUrl, name: file.name }); setIsImageSelectModalOpen(true); }; reader.readAsDataURL(file); };
             const handleFileAdd = () => { fileInputRef.current?.click(); };
-            const handleImagePlacement = (targetCanvasKey) => { if (currentImagePayload) { setCanvasImages(prev => ({ ...prev, [targetCanvasKey]: currentImagePayload.url })); setImageTransform(prev => ({ ...prev, [targetCanvasKey]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); 
-                triggerToast(`Bild "${currentImagePayload.name}" zu ${targetCanvasKey.toUpperCase()} hinzugefügt.`); } setIsImageSelectModalOpen(false); setCurrentImagePayload(null); };
+            const handleImagePlacement = (targetCanvasKey) => { if (currentImagePayload) { setCanvasImages(prev => ({ ...prev, [targetCanvasKey]: currentImagePayload.url })); setImageTransform(prev => ({ ...prev, [targetCanvasKey]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild "${currentImagePayload.name}" zu ${targetCanvasKey.toUpperCase()} hinzugefügt.`); } setIsImageSelectModalOpen(false); setCurrentImagePayload(null); };
             const handleClearImage = (key) => { setCanvasImages(prev => ({ ...prev, [key]: null })); setImageTransform(prev => ({ ...prev, [key]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild von ${key.toUpperCase()} entfernt.`); };
             
-            // FIX: Print function logic cleanup
-            const handlePrint = useCallback(() => {
-                window.print();
-            }, []);
+            const handlePrint = useCallback(() => { window.print(); }, []);
 
-            // --- Geänderte Logik: Abschluss-Button verhalten ---
-            const handleFinishOffer = () => { 
+            const handleFinishOfferClick = () => {
+                // If signature exists, assume it was already processed as a 'deal', so just print or finish
                 if (customerSignature) {
-                    // Wenn bereits unterschrieben, öffne das Referral Modal (als Zwischenschritt zum Druck)
-                    setShowReferralModal(true);
+                    handlePrint(); 
                 } else {
-                    // Wenn noch nicht unterschrieben, öffne Signatur-Modal
-                    setShowSignatureModal(true); 
+                    // Open the decision modal
+                    setShowFinishTypeModal(true);
                 }
-            };
-            
-            // --- Geänderte Logik: Nach Unterschrift -> Referral Modal -> Druck ---
-            const handleSignatureSave = (dataUrl) => {
-                if (dataUrl === 'PAPER_SIGNATURE') {
-                    setCustomerSignature(null); 
-                    triggerToast("Papier-Unterschrift bestätigt.");
-                } else {
-                    setCustomerSignature(dataUrl);
-                    triggerToast("Unterschrift erfasst.");
-                }
-                
-                // Schließe Signatur Modal
-                setShowSignatureModal(false);
-                
-                // Öffne AUTOMATISCH das Referral Modal als nächsten Schritt
-                // Dies löst das Problem des Users, dass kein weiteres Popup kam
-                setTimeout(() => setShowReferralModal(true), 300);
-            };
-            
-            const handleSkipToOffer = (reasonData) => {
-                setSkipReason(reasonData);
-                setShowSkipReasonModal(false);
-                setView('offer');
-                triggerToast(`Situation übersprungen. Grund: ${reasonData.substring(0, 30)}...`);
             };
 
-            const handleClearAll = () => {
-                // Clear all strokes
-                setDrawnStrokes({
-                    main: [], email: [], provider: [], notes: [], offer1: [], offer2: [], offer3: [],
-                    cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [],
-                    skip_reason: [] 
-                });
-                // Clear text data
-                setTextData({
-                    AgentName: 'Max Mustermann',
-                    DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-                    offer1: '', offer2: '', offer3: '',
-                    Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: ''
-                });
-                // Clear state selections
-                setCustomerType("");
-                setSegment("");
-                setProviderSelect("");
-                setCustomProvider("");
-                setIsCustomProvider(false);
-                setEmailText('');
-                
-                // NEU: Clear skip reason state
-                setSkipReason('');
-                setSkipReasonMode('keyboard');
-                
-                // Clear cost data
-                setCostState({ mobile: '', landline: '', tv: '' });
-                // Clear offer data
-                setOfferData(initialOfferData);
-                // Clear canvas status
-                setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' });
-                // Clear signature
-                setCustomerSignature(null);
-                // Clear images
-                setCanvasImages({ offer1: null, offer2: null, offer3: null });
-                // Reset image transforms (now includes rotation)
-                setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } });
-                // Trigger redraw to clear canvases visually
-                setRedrawCounter(r => r + 1);
-                triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.');
+            const handleFinishTypeSelection = (type) => {
+                setShowFinishTypeModal(false);
+                if (type === 'deal') {
+                    // Path 1: Deal -> Signature -> Referral -> Print
+                    setShowSignatureModal(true);
+                } else {
+                    // Path 2: Quote -> Skip Signature -> Skip Referral -> Print directly
+                    // Clear signature just in case
+                    setCustomerSignature(null);
+                    triggerToast("Angebot wird gedruckt (Status: Offen)");
+                    setTimeout(() => handlePrint(), 500);
+                }
             };
+            
+            const handleSignatureSave = (dataUrl) => { if (dataUrl === 'PAPER_SIGNATURE') { setCustomerSignature(null); triggerToast("Papier-Unterschrift bestätigt."); } else { setCustomerSignature(dataUrl); triggerToast("Unterschrift erfasst."); } setShowSignatureModal(false); setTimeout(() => setShowReferralModal(true), 300); };
+            
+            const handleSkipToOffer = (reasonData) => { setSkipReason(reasonData); setShowSkipReasonModal(false); setView('offer'); triggerToast(`Situation übersprungen. Grund: ${reasonData.substring(0, 30)}...`); };
+
+            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [], skip_reason: [] }); setTextData({ AgentName: 'Max Mustermann', DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
 
             const Toast = ({ message }) => { if (!message) return null; return (<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg border border-slate-700 animate-in fade-in duration-300"><div className="flex items-center gap-2"><Icon d={ICONS.Clipboard} size={16} className="text-green-400"/><span className="text-sm font-medium">{message}</span></div></div>); };
 
@@ -1034,102 +724,33 @@
             const handleCategoryClick = (cat) => { setActiveCategory(cat); setQuestionIndex(0); };
             const handleNextQuestion = () => setQuestionIndex((prev) => (prev + 1) % (questionsData[activeCategory || 'default'].length));
             const getCurrentQuestion = () => questionsData[activeCategory || 'default'][questionIndex];
-            
-            const handleTextChange = (key, val) => { 
-                setTextData(prev => ({ ...prev, [key]: val })); 
-                if (displayLanguage !== 'de') { 
-                    setTranslatedText(prev => ({ 
-                        ...prev, 
-                        [displayLanguage]: { ...prev[displayLanguage], [key]: val } 
-                    })); 
-                } 
-            };
-            
+            const handleTextChange = (key, val) => { setTextData(prev => ({ ...prev, [key]: val })); if (displayLanguage !== 'de') { setTranslatedText(prev => ({ ...prev, [displayLanguage]: { ...prev[displayLanguage], [key]: val } })); } };
             const handleCostChange = (key, e) => { const val = e.target.value; setCostState(prev => ({ ...prev, [key]: val })); };
             const handleUpdateQuestions = (cat, newQs) => { setQuestionsData(prev => ({...prev, [cat]: newQs})); };
             const isFormValid = customerType !== "" && segment !== "" && techSituation !== "";
             const isMainInputReadOnly = inputMode === 'pen';
-            const getInputClasses = () => { let classes = "w-full h-full bg-transparent border-none focus:ring-0 px-4 placeholder-blue-50/0 group-hover:placeholder-blue-100/50 transition-all "; if (textSize === 'small') classes += "text-sm "; else if (textSize === 'medium') classes += "text-base "; else if (textSize === 'large') classes += "text-lg "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; return classes; };
+            const getInputClasses = () => { let classes = "w-full h-full bg-transparent border-none focus:ring-0 px-4 placeholder-blue-50/0 group-hover:placeholder-blue-100/50 transition-all "; if (textSize === 'small') classes += "text-sm "; else if (textSize === 'medium') classes += "text-base "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; return classes; };
             const clearCanvas = (ref, key) => { const canvas = ref.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, [key]: [] })); setRedrawCounter(r => r + 1); };
 
-            useEffect(() => { const canvasMap = [ { ref: canvasRef, key: 'main' }, { ref: emailCanvasRef, key: 'email', mode: emailMode }, { ref: providerCanvasRef, key: 'provider', mode: providerMode, condition: isCustomProvider }, { ref: notesCanvasRef, key: 'notes', mode: notesMode }, { ref: skipReasonCanvasRef, key: 'skip_reason', mode: skipReasonMode, condition: true } ]; const offerCanvasMap = [ { ref: offerCanvasRef1, key: 'offer1', scaleRef: scaleRef1 }, { ref: offerCanvasRef2, key: 'offer2', scaleRef: scaleRef2 }, { ref: offerCanvasRef3, key: 'offer3', scaleRef: scaleRef3 }, { ref: offerCost1Ref, key: 'cost_einmalig', mode: inputMode, condition: true }, { ref: offerCost2Ref, key: 'cost_monatlich1', mode: inputMode, condition: true }, { ref: offerCost3Ref, key: 'cost_monatlich2', mode: inputMode, condition: true }, { ref: offerAgentRef, key: 'agent_name', mode: inputMode, condition: true }, { ref: offerDateRef, key: 'date_field', mode: inputMode, condition: true } ]; const resizeCanvas = (ref, key) => { const canvas = ref.current; if (!canvas || !key) return; const rect = canvas.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; dprRef.current = dpr; const oldWidth = canvas.width; const oldHeight = canvas.height; const newWidth = rect.width * dpr; const newHeight = rect.height * dpr; if (oldWidth !== newWidth || oldHeight !== newHeight) { const tempCanvas = document.createElement('canvas'); tempCanvas.width = oldWidth; tempCanvas.height = oldHeight; const tempCtx = tempCanvas.getContext('2d'); if (oldWidth > 0 && oldHeight > 0) { tempCtx.drawImage(canvas, 0, 0); } canvas.width = newWidth; canvas.height = newHeight; const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; if (key !== 'main' && !key.startsWith('offer') && !key.startsWith('cost_') && !key.startsWith('agent_') && !key.startsWith('date_')) { } } }; const resizeAll = () => { canvasMap.forEach(map => { const shouldResize = map.key === 'main' || map.mode === 'pen' && (map.condition === undefined || map.condition); if (shouldResize) { resizeCanvas(map.ref, map.key); } }); if (view === 'offer') { offerCanvasMap.forEach(({ ref, key }) => { resizeCanvas(ref, key); }); } setRedrawCounter(r => r + 1); }; resizeAll(); window.addEventListener('resize', resizeAll); return () => window.removeEventListener('resize', resizeAll); }, [emailMode, providerMode, isCustomProvider, notesMode, skipReasonMode, view, inputMode]); 
+            useEffect(() => { const canvasMap = [ { ref: canvasRef, key: 'main' }, { ref: emailCanvasRef, key: 'email', mode: emailMode }, { ref: providerCanvasRef, key: 'provider', mode: providerMode, condition: isCustomProvider }, { ref: notesCanvasRef, key: 'notes', mode: notesMode }, { ref: skipReasonCanvasRef, key: 'skip_reason', mode: skipReasonMode, condition: true } ]; const offerCanvasMap = [ { ref: offerCanvasRef1, key: 'offer1', scaleRef: scaleRef1 }, { ref: offerCanvasRef2, key: 'offer2', scaleRef: scaleRef2 }, { ref: offerCanvasRef3, key: 'offer3', scaleRef: scaleRef3 }, { ref: offerCost1Ref, key: 'cost_einmalig', mode: inputMode, condition: true }, { ref: offerCost2Ref, key: 'cost_monatlich1', mode: inputMode, condition: true }, { ref: offerCost3Ref, key: 'cost_monatlich2', mode: inputMode, condition: true }, { ref: offerAgentRef, key: 'agent_name', mode: inputMode, condition: true }, { ref: offerDateRef, key: 'date_field', mode: inputMode, condition: true } ]; const resizeCanvas = (ref, key) => { const canvas = ref.current; if (!canvas || !key) return; const rect = canvas.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; dprRef.current = dpr; const oldWidth = canvas.width; const oldHeight = canvas.height; const newWidth = rect.width * dpr; const newHeight = rect.height * dpr; if (oldWidth !== newWidth || oldHeight !== newHeight) { const tempCanvas = document.createElement('canvas'); tempCanvas.width = oldWidth; tempCanvas.height = oldHeight; const tempCtx = tempCanvas.getContext('2d'); if (oldWidth > 0 && oldHeight > 0) { tempCtx.drawImage(canvas, 0, 0); } canvas.width = newWidth; canvas.height = newHeight; const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; } }; const resizeAll = () => { canvasMap.forEach(map => { const shouldResize = map.key === 'main' || map.mode === 'pen' && (map.condition === undefined || map.condition); if (shouldResize) { resizeCanvas(map.ref, map.key); } }); if (view === 'offer') { offerCanvasMap.forEach(({ ref, key }) => { resizeCanvas(ref, key); }); } setRedrawCounter(r => r + 1); }; resizeAll(); window.addEventListener('resize', resizeAll); return () => window.removeEventListener('resize', resizeAll); }, [emailMode, providerMode, isCustomProvider, notesMode, skipReasonMode, view, inputMode]); 
             useEffect(() => { const canvas = canvasRef.current; if (canvas && drawnStrokes.main.length > 0) { redrawCanvas(canvas, drawnStrokes.main, 1, 'main'); } }, [drawnStrokes.main, redrawCounter]); 
 
             const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
             const startDrawing = useCallback((e, ref, key) => { e.preventDefault(); const canvas = ref?.current; if(!canvas) return; const pointerType = e.pointerType; const isPenInput = pointerType === 'pen'; const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen'; const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen'); 
             const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
             const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
-            const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; 
-                if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
+            const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
 
             const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
             const toggleTech = (val) => setShowTechModal(val);
             const penTools = [{ id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' }, { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' }, { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' }];
             const handleOfferCostChange = (key, value) => { const cleanValue = value.replace(',', '.'); let val = parseFloat(cleanValue); const rawKey = `${key}Raw`; setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val })); };
-            const getOfferCanvasRef = (key) => { if (key === 'offer1') return offerCanvasRef1; if (key === 'offer2') return offerCanvasRef2; if (key === 'offer3') return offerCanvasRef3; return null; };
             const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? '0'; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (<input type={type} value={rawValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full p-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'text-xl font-black text-slate-800 bg-transparent' : 'text-slate-700 bg-transparent'}`}/>)}</div></div>); };
             
-            // LOKALE (MOCK) ÜBERSETZUNGSLOGIK
-            const handleLocalTranslation = useCallback((targetCode) => {
-                if (targetCode === 'de') return;
-                
-                const mockData = MOCK_TRANSLATIONS[targetCode];
+            const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
+            useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
 
-                if (mockData) {
-                    const newTranslatedText = {};
-                    const newStaticTranslations = {};
-                    
-                    // 1. Statische Labels aus MOCK-Daten laden
-                    Object.keys(STATIC_LABELS).forEach(key => {
-                        if (mockData[key]) {
-                             newStaticTranslations[key] = mockData[key];
-                        }
-                    });
-
-                    // 2. Textfelder aus MOCK-Daten laden (als initialer übersetzter Text)
-                    Object.keys(textData).forEach(key => {
-                        if (mockData[key]) {
-                            newTranslatedText[key] = mockData[key];
-                        }
-                    });
-
-                    // 3. States aktualisieren
-                    setTranslatedText(prev => ({ 
-                        ...prev, 
-                        [targetCode]: { 
-                            ...(prev[targetCode] || {}), 
-                            ...newTranslatedText 
-                        } 
-                    }));
-                    
-                    setStaticTranslations(prev => ({ 
-                        ...prev, 
-                        [targetCode]: { 
-                            ...(prev[targetCode] || {}), 
-                            ...newStaticTranslations 
-                        } 
-                    }));
-
-                    // 4. Update dynamic data for instant display (like AgentName/Date)
-                    if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName);
-                    if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue);
-
-
-                    triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`);
-                } else {
-                    triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`);
-                }
-                
-            }, [triggerToast, textData, handleTextChange]); 
-
-            // Trigger local translation on language change
-            useEffect(() => { 
-                if (displayLanguage !== 'de') {
-                    if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) {
-                        handleLocalTranslation(displayLanguage);
-                    }
-                }
-            }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
+            const handleShare = async () => { const customerName = getDisplayText('Kundenname') || 'Kunde'; const totalCost = offerData.monatlich1Raw || '0'; const shareData = { title: `Angebot für ${customerName}`, text: `Hallo! Hier ist das Angebot für ${customerName}. Monatlich im 1. Jahr: ${totalCost}€.`, }; try { if (navigator.share && navigator.canShare(shareData)) { await navigator.share(shareData); triggerToast('Erfolgreich geteilt!'); } else { copyToClipboard(shareData.text); triggerToast('Teilen nicht unterstützt. Text in Zwischenablage kopiert.'); } } catch (error) { console.error('Fehler beim Teilen:', error); } };
 
             return (
                 <div className="w-full h-full bg-[#f0f6ff] font-sans text-slate-800 flex flex-col overflow-hidden text-sm">
@@ -1139,39 +760,14 @@
                     <TechModal isOpen={showTechModal} onClose={() => toggleTech(false)} />
                     <RoamingModal isOpen={showRoamingModal} onClose={() => setShowRoamingModal(false)} />
                     <QuestionModal isOpen={!!activeCategory && !showAdmin} onClose={() => setActiveCategory(null)} category={activeCategory} question={getCurrentQuestion()} onNextQuestion={handleNextQuestion} />
-                    
-                    {/* NEU: Referral Modal */}
                     <ReferralModal isOpen={showReferralModal} onClose={() => setShowReferralModal(false)} onPrint={handlePrint} />
+                    <FinishTypeModal isOpen={showFinishTypeModal} onClose={() => setShowFinishTypeModal(false)} onSelect={handleFinishTypeSelection} />
 
-                    <SkipReasonModal
-                        isOpen={showSkipReasonModal}
-                        onClose={() => setShowSkipReasonModal(false)}
-                        onConfirm={handleSkipToOffer}
-                        reason={skipReason}
-                        setReason={setSkipReason}
-                        reasonMode={skipReasonMode}
-                        setReasonMode={setSkipReasonMode}
-                        drawnStrokes={drawnStrokes}
-                        setDrawnStrokes={setDrawnStrokes}
-                        canvasRef={skipReasonCanvasRef}
-                        startDrawing={startDrawing}
-                        draw={draw}
-                        stopDrawing={stopDrawing}
-                        MIN_LENGTH={MIN_REASON_LENGTH}
-                    />
-                    
-                    <AdminModal 
-                        isOpen={showAdmin} 
-                        onClose={()=>setShowAdmin(false)} 
-                        questions={questionsData} 
-                        onUpdate={handleUpdateQuestions}
-                        oneDriveLink={oneDriveLink}
-                        onUpdateLink={setOneDriveLink}
-                    />
+                    <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} />
+                    <AdminModal isOpen={showAdmin} onClose={()=>setShowAdmin(false)} questions={questionsData} onUpdate={handleUpdateQuestions} oneDriveLink={oneDriveLink} onUpdateLink={setOneDriveLink} />
                     
                     <ImagePlacementModal isOpen={isImageSelectModalOpen} onClose={() => setIsImageSelectModalOpen(false)} onPlace={handleImagePlacement} imageName={currentImagePayload?.name || 'Datei'} />
                     <SignatureModal isOpen={showSignatureModal} onClose={() => setShowSignatureModal(false)} onSign={handleSignatureSave} />
-                    {/* ReferralModal wurde entfernt */}
 
                     <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={() => setShowAdmin(true)} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="Fragen & Links bearbeiten (Admin)"><Icon d={ICONS.Lock} size={18}/></button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-700 leading-tight self-start mt-2">{view === 'situation' ? 'v16.7 Analyse' : 'v16.7 Angebot'}</span></header>
 
@@ -1189,17 +785,15 @@
 
                         <aside className="w-[300px] bg-[#f0f6ff] p-3 shrink-0 hidden lg:flex flex-col border-l border-slate-200 z-10 h-full overflow-hidden">
                             <div className="flex-1 flex flex-col min-h-0 gap-2 overflow-y-auto custom-scrollbar">
-                                <SectionCard title="Stammdaten" className="shrink-0 flex flex-col"><div className="grid grid-cols-2 gap-2 mb-2 shrink-0"><div className="relative h-8"><select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${customerType === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Kundentyp *</option><option value="Neukunde">Neukunde</option><option value="Bestandskunde">Bestandskunde</option></select></div><div className="relative h-8"><select value={segment} onChange={(e) => setSegment(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${segment === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Segment *</option><option value="Privatkunde">Privatkunde</option><option value="Geschäftskunden">Geschäftskunden</option><option value="Vertragsverlängerung">Vertragsverlängerung</option><option value="Junge Leute">Junge Leute</option><option value="Bestes Alter">Bestes Alter</option></select></div></div><div className="relative w-full h-8 border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center shrink-0"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20"><button onClick={() => setEmailMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{emailMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button></div>{emailMode === 'keyboard' ? (<input type="text" value={emailText} onChange={(e) => setEmailText(e.target.value)} placeholder="E-Mail Adresse" className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-10" />) : (<><canvas ref={emailCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair drawing-canvas" onPointerDown={(e) => startDrawing(e, emailCanvasRef, 'email')} onPointerMove={(e) => draw(e, emailCanvasRef, 'email')} onPointerUp={(e) => stopDrawing(e, emailCanvasRef)} onPointerLeave={(e) => stopDrawing(e, emailCanvasRef)} /><button onClick={() => clearCanvas(emailCanvasRef, 'email')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div></SectionCard>
-                                <SectionCard title="Technische Situation" className="shrink-0 flex flex-col"><div className="relative mb-2 w-full h-8 shrink-0">{!isCustomProvider ? (<select value={providerSelect} onChange={(e) => { if (e.target.value === 'Sonstiges') { setIsCustomProvider(true); setProviderSelect('Sonstiges'); } else { setProviderSelect(e.target.value); setIsCustomProvider(false); } }} className={`w-full h-full bg-slate-50 border rounded-md pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${providerSelect === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Derzeitiger DSL-Anbieter *</option><option value="Telekom">Telekom</option><option value="1&1">1&1</option><option value="Vodafone">Vodafone</option><option value="O2">O2</option><option value="Sonstiges">Sonstiges / Eingabe</option></select>) : (<div className="relative w-full h-full border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center border-l-4 border-l-green-500"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex gap-1"><button onClick={() => setProviderMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{providerMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button><button onClick={() => { setIsCustomProvider(false); setProviderSelect(''); setCustomProvider(''); }} className="p-1 hover:bg-slate-100 rounded text-slate-400" title="Zurück zur Liste"><Icon d={ICONS.List} size={10}/></button></div>{providerMode === 'keyboard' ? (<input type="text" value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Anbieter..." className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-16" autoFocus />) : (<><canvas ref={providerCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair drawing-canvas" onPointerDown={(e) => startDrawing(e, providerCanvasRef, 'provider')} onPointerMove={(e) => draw(e, providerCanvasRef, 'provider')} onPointerUp={(e) => stopDrawing(e, providerCanvasRef)} onPointerLeave={(e) => stopDrawing(e, providerCanvasRef)} /><button onClick={() => clearCanvas(providerCanvasRef, 'provider')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div>)}</div><button onClick={() => setShowWlanModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors shrink-0"><Icon d={ICONS.Wifi} size={14} className="text-slate-500" /> WLAN-Planer öffnen</button></SectionCard>
+                                <SectionCard title="Stammdaten" className="shrink-0 flex flex-col"><div className="grid grid-cols-2 gap-2 mb-2 shrink-0"><div className="relative h-8"><select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${customerType === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Kundentyp *</option><option value="Neukunde">Neukunde</option><option value="Bestandskunde">Bestandskunde</option></select></div><div className="relative h-8"><select value={segment} onChange={(e) => setSegment(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${segment === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Segment *</option><option value="Privatkunde">Privatkunde</option><option value="Geschäftskunden">Geschäftskunden</option><option value="Vertragsverlängerung">Vertragsverlängerung</option><option value="Junge Leute">Junge Leute</option><option value="Bestes Alter">Bestes Alter</option></select></div></div><div className="relative w-full h-16 border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center shrink-0"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20"><button onClick={() => setEmailMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{emailMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button></div>{emailMode === 'keyboard' ? (<input type="text" value={emailText} onChange={(e) => setEmailText(e.target.value)} placeholder="E-Mail Adresse" className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-10" />) : (<><canvas ref={emailCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onPointerDown={(e) => startDrawing(e, emailCanvasRef, 'email')} onPointerMove={(e) => draw(e, emailCanvasRef, 'email')} onPointerUp={(e) => stopDrawing(e, emailCanvasRef)} onPointerLeave={(e) => stopDrawing(e, emailCanvasRef)} /><button onClick={() => clearCanvas(emailCanvasRef, 'email')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div></SectionCard>
+                                <SectionCard title="Technische Situation" className="shrink-0 flex flex-col"><div className="relative mb-2 w-full h-8 shrink-0">{!isCustomProvider ? (<select value={providerSelect} onChange={(e) => { if (e.target.value === 'Sonstiges') { setIsCustomProvider(true); setProviderSelect('Sonstiges'); } else { setProviderSelect(e.target.value); setIsCustomProvider(false); } }} className={`w-full h-full bg-slate-50 border rounded-md pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${providerSelect === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Derzeitiger DSL-Anbieter *</option><option value="Telekom">Telekom</option><option value="1&1">1&1</option><option value="Vodafone">Vodafone</option><option value="O2">O2</option><option value="Sonstiges">Sonstiges / Eingabe</option></select>) : (<div className="relative w-full h-full border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center border-l-4 border-l-green-500"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex gap-1"><button onClick={() => setProviderMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{providerMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button><button onClick={() => { setIsCustomProvider(false); setProviderSelect(''); setCustomProvider(''); }} className="p-1 hover:bg-slate-100 rounded text-slate-400" title="Zurück zur Liste"><Icon d={ICONS.List} size={10}/></button></div>{providerMode === 'keyboard' ? (<input type="text" value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Anbieter..." className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-16" autoFocus />) : (<><canvas ref={providerCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onPointerDown={(e) => startDrawing(e, providerCanvasRef, 'provider')} onPointerMove={(e) => draw(e, providerCanvasRef, 'provider')} onPointerUp={(e) => stopDrawing(e, providerCanvasRef)} onPointerLeave={(e) => stopDrawing(e, providerCanvasRef)} /><button onClick={() => clearCanvas(providerCanvasRef, 'provider')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div>)}</div><button onClick={() => setShowWlanModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors shrink-0"><Icon d={ICONS.Wifi} size={14} className="text-slate-500" /> WLAN-Planer öffnen</button></SectionCard>
                                 <SectionCard title="Technologie & Speed" className="shrink-0 flex flex-col"><div className="space-y-1 flex flex-col justify-center h-full"><button onClick={() => setShowTechModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Zap} size={14} className="text-slate-500" /> Technologie-Check</button><button onClick={() => setShowSpeedModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Gauge} size={14} className="text-slate-500" /> Speed-Rechner</button></div></SectionCard>
                                 <SectionCard title="Roaming" className="shrink-0 flex flex-col"><div className="flex-1 flex items-center"><button onClick={() => setShowRoamingModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Globe} size={14} className="text-slate-500" /> Roaming Check</button></div></SectionCard>
                                 <SectionCard title="Kosten (Ist)" className="shrink-0 flex flex-col"><div className="flex flex-col justify-center h-full gap-1"><div className="grid grid-cols-2 gap-2"><div><input className="w-full h-7 border border-slate-200 rounded px-2 text-[10px] focus:ring-1 relative z-10 bg-transparent" placeholder="Mobil €" value={costState.mobile} onChange={(e) => handleCostChange('mobile', e)} /><CostBar val={parseCost(costState.mobile)} total={totalCost} colorClass="bg-blue-500" /></div><div><input className="w-full h-7 border border-slate-200 rounded px-2 text-[10px] focus:ring-1 relative z-10 bg-transparent" placeholder="Festnetz €" value={costState.landline} onChange={(e) => handleCostChange('landline', e)} /><CostBar val={parseCost(costState.landline)} total={totalCost} colorClass="bg-cyan-500" /></div></div><div><input className="w-full h-7 border border-slate-200 rounded px-2 text-[10px] focus:ring-1 relative z-10 bg-transparent" placeholder="TV €" value={costState.tv} onChange={(e) => handleCostChange('tv', e)} /><CostBar val={parseCost(costState.tv)} total={totalCost} colorClass="bg-purple-500" /></div></div><div className="bg-slate-100 rounded-md px-2 h-7 flex items-center justify-end text-[11px] font-bold text-slate-700 border border-slate-200 mt-1 shrink-0">{totalCost.toFixed(2)} €}</div></SectionCard>
-                                <SectionCard title="Notizblock" className="flex-1 min-h-0 flex flex-col relative"><div className="absolute top-0 right-0 z-20 p-2"><button onClick={() => setNotesMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={notesMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}>{notesMode === 'keyboard' ? <Icon d={ICONS.Pen} size={14}/> : <Icon d={ICONS.Keyboard} size={14}/>}</button></div>{notesMode === 'keyboard' ? (<textarea className="w-full h-full bg-white border border-amber-200 rounded-md p-2 text-sm text-slate-600 resize-none focus:ring-0 flex-1 relative z-10" defaultValue={'Nur für Verkäufer...'} />) : (<><canvas ref={notesCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ backgroundColor: 'white', borderRadius: '0.75rem' }} onPointerDown={(e) => startDrawing(e, notesCanvasRef, 'notes')} onPointerMove={(e) => draw(e, notesCanvasRef, 'notes')} onPointerUp={(e) => stopDrawing(e, notesCanvasRef)} onPointerLeave={(e) => stopDrawing(e, notesCanvasRef)} /><button onClick={() => clearCanvas(notesCanvasRef, 'notes')} className="absolute top-2 right-12 p-1 hover:bg-slate-200 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={14}/></button></>)}</SectionCard>
                             </div>
                         </aside>
                     </div>
 
-                    {/* Angepasste Offer View für Druck */}
                     <div className={`flex-1 w-full relative bg-[#f0f6ff] ${view === 'offer' ? 'flex overflow-y-auto' : 'hidden'} print-offer-view`}>
                         <div className="w-full flex-1 flex flex-col space-y-6 min-h-0 p-4 md:p-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full offer-print-grid"> 
@@ -1207,12 +801,12 @@
                             </div>
 
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0">
-                                        <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2 relative h-12 flex justify-end">{customerSignature ? (<div className="p-1 h-full w-full max-w-[300px] border-b-2 border-slate-400 flex items-end justify-end"><img src={customerSignature} alt="Kundenunterschrift" className="h-full object-contain object-right-bottom" /></div>) : (<div className="p-2 h-12 bg-slate-50 border border-slate-300 rounded-lg text-center text-sm text-slate-400 font-medium flex items-center justify-center w-full">Feld für Stempel / Unterschrift Kunde</div>)}</div></div>
-                                        {customerSignature && (<div className="w-full flex justify-end mt-1 pr-[1.25rem]"><span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unterschrift Kunde</span></div>)}
-                                        <div className="mt-4 pt-4 border-t border-slate-100"><p className="text-[10px] text-slate-400 leading-tight">**Datenschutzerklärung (Platzhalter):** Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der angegebenen Kosten und nehmen die Vertragsdetails sowie die beigefügte Datenschutzerklärung zur Kenntnis. Sie stimmen der elektronischen Speicherung Ihrer Daten zum Zwecke der Vertragsabwicklung zu. Widerrufsbelehrung liegt bei.</p></div>
-                                    </div>
+                                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2 relative h-12 flex justify-end">{customerSignature ? (<div className="p-1 h-full w-full max-w-[300px] border-b-2 border-slate-400 flex items-end justify-end"><img src={customerSignature} alt="Kundenunterschrift" className="h-full object-contain object-right-bottom" /></div>) : (<div className="p-2 h-12 bg-slate-50 border border-slate-300 rounded-lg text-center text-sm text-slate-400 font-medium flex items-center justify-center w-full">Feld für Stempel / Unterschrift Kunde</div>)}</div></div>
+                                {customerSignature && (<div className="w-full flex justify-end mt-1 pr-[1.25rem]"><span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unterschrift Kunde</span></div>)}
+                                <div className="mt-4 pt-4 border-t border-slate-100"><p className="text-[10px] text-slate-400 leading-tight">**Datenschutzerklärung (Platzhalter):** Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der angegebenen Kosten und nehmen die Vertragsdetails sowie die beigefügte Datenschutzerklärung zur Kenntnis. Sie stimmen der elektronischen Speicherung Ihrer Daten zum Zwecke der Vertragsabwicklung zu. Widerrufsbelehrung liegt bei.</p></div>
+                            </div>
                         </div>
                     </div>
 
@@ -1220,82 +814,10 @@
                         {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
-                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center"><button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOffer} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Angebot abschließen'} <Icon d={ICONS.Signature} size={18}/></button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
+                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center"><button onClick={handleShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button><button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
         }
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-<style id="print-force-2-pages-final">
-@media print {
-
-  /* ========= GRUNDLAGEN ========= */
-  @page {
-    size: A4 landscape;
-    margin: 0.4cm;
-  }
-
-  html, body, #root {
-    height: auto !important;
-    overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    background: #ffffff !important;
-  }
-
-  /* ========= SEITE 1 ========= */
-  .situation-view-wrapper {
-    display: flex !important;
-    flex-direction: row !important;
-
-    /* garantiert Seite 1 */
-    page-break-after: always !important;
-    break-after: page !important;
-
-    /* leicht verkleinert, damit ALLES sicher passt */
-    zoom: 0.80 !important;
-
-    overflow: visible !important;
-    max-height: none !important;
-  }
-
-  /* Sidebar (Stammdaten etc.) erzwingen */
-  .situation-view-wrapper aside {
-    display: flex !important;
-    visibility: visible !important;
-    height: auto !important;
-  }
-
-  /* ========= SEITE 2 ========= */
-  .print-offer-view {
-    display: block !important;
-
-    /* garantiert Seite 2 */
-    page-break-before: always !important;
-    break-before: page !important;
-
-    /* HARDLOCK: niemals Seite 3 */
-    max-height: 200mm !important;
-    overflow: hidden !important;
-  }
-
-  /* Angebots-Inhalt NICHT selbst umbrechen */
-  .print-page-2 {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-
-    /* Feinjustierung nach oben */
-    transform: translateY(-120px) !important;
-    transform-origin: top center !important;
-  }
-
-  /* ========= SICHERHEIT ========= */
-  /* Alles NACH dem Angebot im Druck ausblenden */
-  .print-offer-view ~ * {
-    display: none !important;
-  }
-
-}
-</style>
-
 </body>
 </html>
