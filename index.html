@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vertriebs-Dashboard v16.7 - Freunde werben & Druck-Fix</title>
+    <title>Vertriebs-Dashboard - Freunde werben & Druck-Fix</title>
     
     <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -163,6 +163,37 @@ html, body {
     .print-page-header{ display:flex !important; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; background:#ffffff !important; border:1px solid #e2e8f0; border-radius:14px; margin:0 0 10px 0; }
     .print-page-header .title{ font-size:28px; font-weight:900; color:#0b1e42; letter-spacing:-0.02em; }
     .print-page-header .badge{ background:#2563eb; color:#ffffff; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:800; border:1px solid #1d4ed8; }
+
+    /* HIDA Logo (Screen + Print) */
+    .hida-logo-screen{
+        position:absolute;
+        right:16px;
+        top:50%;
+        transform:translateY(-50%);
+        width:180px;
+        height:48px;
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        pointer-events:none;
+        z-index:60;
+    }
+    .hida-logo-screen svg{ width:180px; height:48px; }
+
+    .print-page-header .print-header-right{
+        display:flex;
+        align-items:center;
+        gap:10px;
+    }
+    .print-page-header .hida-logo-print{
+        height:34px;
+        width:auto;
+        object-fit:contain;
+    }
+
+    @media print{
+        .hida-logo-screen{ display:none !important; } /* Screen-Header wird beim Druck ersetzt */
+    }
 
     /* Interaktive UI/Overlays ausblenden */
     .situation-view-wrapper button,
@@ -535,6 +566,19 @@ html, body {
             Print: '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>'
         };
 
+        // --- HIDA / HeTec Logo (inline SVG, print-safe) ---
+        const HIDA_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 190">
+  <rect width="100%" height="100%" fill="transparent"/>
+  <text x="360" y="55" text-anchor="middle" font-size="36" letter-spacing="6"
+        fill="#9ca3af" font-family="Arial, Helvetica, sans-serif">— SHOP —</text>
+  <text x="360" y="120" text-anchor="middle" font-size="96" font-weight="600"
+        fill="#9ca3af" font-family="Arial, Helvetica, sans-serif">HeTec</text>
+  <text x="360" y="170" text-anchor="middle" font-size="34" letter-spacing="8"
+        fill="#2dd4bf" font-family="Arial, Helvetica, sans-serif">WIR GESTALTEN ZUKUNFT</text>
+</svg>`;
+        const HIDA_LOGO_DATA_URI = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HIDA_LOGO_SVG);
+
+
         // --- 1. DATA CONFIG ---
         const ALL_LANGUAGES = [{code:'de',name:'Deutsch',flag:'🇩🇪',languageCode:'de'},{code:'ar',name:'Arabisch',flag:'🇸🇦',languageCode:'ar'},{code:'en',name:'Englisch',flag:'🇬🇧',languageCode:'en'},{code:'el',name:'Griechisch',flag:'🇬🇷',languageCode:'el'},{code:'it',name:'Italienisch',flag:'🇮🇹',languageCode:'it'},{code:'pl',name:'Polnisch',flag:'🇵🇱',languageCode:'pl'},{code:'pt',name:'Portugiesisch',flag:'🇵🇹',languageCode:'pt'},{code:'ro',name:'Rumänisch',flag:'🇷🇴',languageCode:'ro'},{code:'es',name:'Spanisch',flag:'🇪🇸',languageCode:'es'},{code:'tr',name:'Türkisch',flag:'🇹🇷',languageCode:'tr'}];
         const SORTED_LANGUAGES = [ALL_LANGUAGES.find(l=>l.code==='de'),...ALL_LANGUAGES.filter(l=>l.code!=='de').sort((a,b)=>a.name.localeCompare(b.name))];
@@ -609,14 +653,69 @@ html, body {
             const [hasSigned, setHasSigned] = useState(false);
             const sigConfig = { strokeWidth: 4, color: '#000000', points: [], baseWidth: 0 };
             const currentStrokeRef = useRef(null); 
-            const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
-            const startDrawing = (e) => { e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; if (e.pointerType !== 'pen' && e.pointerType !== 'touch') return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); ctx.lineWidth = sigConfig.strokeWidth * (window.devicePixelRatio || 1); ctx.strokeStyle = sigConfig.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; const dpr = window.devicePixelRatio || 1; const x = cssX * dpr; const y = cssY * dpr; ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = { tool: 'pen', color: sigConfig.color, width: sigConfig.strokeWidth, points: [{ x: cssX, y: cssY }], baseWidth: canvas.getBoundingClientRect().width }; canvas.setPointerCapture(e.pointerId); setIsDrawingSig(true); };
-            const draw = (e) => { if (!isDrawingSig || !currentStrokeRef.current) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; const x = cssX * dpr; const y = cssY * dpr; ctx.lineTo(x, y); ctx.stroke(); currentStrokeRef.current.points.push({ x: cssX, y: cssY }); setHasSigned(true); };
-            const stopDrawing = (e) => { if (!isDrawingSig) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; canvas.releasePointerCapture(e.pointerId); setIsDrawingSig(false); };
+            const getRelativeCoords = (e, canvas) => {
+                const ne = e?.nativeEvent || e;
+                // Prefer offsetX/offsetY when available (handles transformed/animated containers more reliably)
+                const ox = ne?.offsetX;
+                const oy = ne?.offsetY;
+                if (Number.isFinite(ox) && Number.isFinite(oy)) return { x: ox, y: oy };
+
+                const rect = canvas.getBoundingClientRect();
+                const clientX = ne?.clientX ?? ne?.touches?.[0]?.clientX;
+                const clientY = ne?.clientY ?? ne?.touches?.[0]?.clientY;
+                if (clientX === undefined || clientY === undefined) return null;
+
+                const cssX = clientX - rect.left;
+                const cssY = clientY - rect.top;
+                return { x: cssX, y: cssY };
+            };
+            const startDrawing = (e) => { e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const pt = e.pointerType; if (pt && pt !== 'pen' && pt !== 'touch' && pt !== 'mouse') return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); /* Canvas-Context ist bereits im resizeCanvas() auf DPR skaliert, daher hier NICHT nochmal mit DPR multiplizieren. */ ctx.lineWidth = sigConfig.strokeWidth; ctx.strokeStyle = sigConfig.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(cssX, cssY); currentStrokeRef.current = { tool: 'pen', color: sigConfig.color, width: sigConfig.strokeWidth, points: [{ x: cssX, y: cssY }], baseWidth: canvas.getBoundingClientRect().width }; if (canvas.setPointerCapture && e.pointerId != null) { try { canvas.setPointerCapture(e.pointerId); } catch(_) {} } setIsDrawingSig(true); };
+            const draw = (e) => { if (!isDrawingSig || !currentStrokeRef.current) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); ctx.lineTo(cssX, cssY); ctx.stroke(); currentStrokeRef.current.points.push({ x: cssX, y: cssY }); setHasSigned(true); };
+            const stopDrawing = (e) => { if (!isDrawingSig) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; if (canvas.releasePointerCapture && e.pointerId != null) { try { canvas.releasePointerCapture(e.pointerId); } catch(_) {} } setIsDrawingSig(false); };
             const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); setHasSigned(false); currentStrokeRef.current = null; };
             const handleSave = () => { const canvas = canvasRef.current; if (!canvas || !hasSigned) { onClose(); return; } const dataUrl = canvas.toDataURL('image/png'); onSign(dataUrl); onClose(); };
             const handlePaperSignature = () => { onSign('PAPER_SIGNATURE'); onClose(); };
-            useEffect(() => { if (!isOpen) return; const canvas = canvasRef.current; if (!canvas) return; const resizeCanvas = () => { const rect = canvas.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(canvas, 0, 0); canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.drawImage(tempCanvas, 0, 0, rect.width, rect.height); }; resizeCanvas(); window.addEventListener('resize', resizeCanvas); return () => window.removeEventListener('resize', resizeCanvas); }, [isOpen]);
+            useEffect(() => {
+            if (!isOpen) return;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            const resizeCanvas = () => {
+                const rect = canvas.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+
+                const dpr = window.devicePixelRatio || 1;
+
+                // Preserve existing drawing while resizing
+                const temp = document.createElement('canvas');
+                temp.width = canvas.width;
+                temp.height = canvas.height;
+                const tctx = temp.getContext('2d');
+                if (tctx) tctx.drawImage(canvas, 0, 0);
+
+                canvas.width = Math.round(rect.width * dpr);
+                canvas.height = Math.round(rect.height * dpr);
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                // Reset transform (avoid cumulative scaling) and scale once for DPR
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Draw back the preserved content into CSS pixel space
+                ctx.drawImage(temp, 0, 0, rect.width, rect.height);
+            };
+
+            // Important: wait until modal layout is fully settled (animations/reflow) before measuring
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resizeCanvas);
+            });
+
+            window.addEventListener('resize', resizeCanvas);
+            return () => window.removeEventListener('resize', resizeCanvas);
+        }, [isOpen]);
             if (!isOpen) return null;
             return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.Signature} size={24} className="text-green-600"/> Kundenunterschrift</h3><p className="text-sm text-slate-600 mb-1">Bitte unterschreiben Sie mit Ihrem Finger oder Stylus in der dafür vorgesehenen Fläche.</p><button type="button" onClick={handlePaperSignature} className="text-xs text-slate-500 hover:text-slate-700 underline decoration-dotted mb-3">Papier-Unterschrift – Kunde unterschreibt klassisch auf Papier und wir machen weiter</button><div className="signature-canvas-container relative" style={{ touchAction: 'none' }}><canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair drawing-canvas" onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing}/></div><div className="flex justify-between items-center mt-4"><button onClick={clearCanvas} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" disabled={!hasSigned}><Icon d={ICONS.Trash} size={16}/> Löschen</button><div className="flex gap-2"><button onClick={() => onClose(true)} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${hasSigned ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!hasSigned}>Übernehmen <Icon d={ICONS.CheckCircle} size={16}/></button></div></div></div></div>);
         };
@@ -1164,7 +1263,17 @@ html, body {
                     <ImagePlacementModal isOpen={isImageSelectModalOpen} onClose={() => setIsImageSelectModalOpen(false)} onPlace={handleImagePlacement} imageName={currentImagePayload?.name || 'Datei'} />
                     <SignatureModal isOpen={showSignatureModal} onClose={() => setShowSignatureModal(false)} onSign={handleSignatureSave} />
 
-                    <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={() => setShowAdmin(true)} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="Fragen & Links bearbeiten (Admin)"><Icon d={ICONS.Lock} size={18}/></button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-700 leading-tight self-start mt-2">{view === 'situation' ? 'v16.7 Analyse' : 'v16.7 Angebot'}</span></header>
+                    <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={() => setShowAdmin(true)} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="Fragen & Links bearbeiten (Admin)"><Icon d={ICONS.Lock} size={18}/></button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><div className="hida-logo-screen" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 190">
+    <rect width="100%" height="100%" fill="transparent"/>
+    <text x="360" y="55" textAnchor="middle" fontSize="36" letterSpacing="6"
+          fill="#9ca3af" fontFamily="Arial, Helvetica, sans-serif">— SHOP —</text>
+    <text x="360" y="120" textAnchor="middle" fontSize="96" fontWeight="600"
+          fill="#9ca3af" fontFamily="Arial, Helvetica, sans-serif">HeTec</text>
+    <text x="360" y="170" textAnchor="middle" fontSize="34" letterSpacing="8"
+          fill="#2dd4bf" fontFamily="Arial, Helvetica, sans-serif">WIR GESTALTEN ZUKUNFT</text>
+  </svg>
+</div></header>
 
                     <div className={`flex-1 w-full overflow-hidden relative ${view === 'situation' ? 'flex' : 'hidden'} situation-view-wrapper`}>
                         <div className="flex-1 flex items-stretch p-4 gap-0 overflow-hidden w-full min-w-0">
@@ -1282,25 +1391,34 @@ html, body {
             const ensurePrintHeaders = () => {
                 document.querySelectorAll('.print-page-header').forEach(el => el.remove());
 
-                const mk = (titleText, badgeText) => {
+                const mk = (titleText) => {
                     const h = document.createElement('div');
                     h.className = 'print-page-header';
+
                     const t = document.createElement('div');
                     t.className = 'title';
                     t.textContent = titleText;
-                    const b = document.createElement('span');
-                    b.className = 'badge';
-                    b.textContent = badgeText;
+
+                    const right = document.createElement('div');
+                    right.className = 'print-header-right';
+
+                    const hida = document.createElement('img');
+                    hida.src = HIDA_LOGO_DATA_URI;
+                    hida.alt = 'HIDA';
+                    hida.className = 'hida-logo-print';
+
+                    right.appendChild(hida);
+
                     h.appendChild(t);
-                    h.appendChild(b);
+                    h.appendChild(right);
                     return h;
                 };
 
                 const sit = document.querySelector('.situation-view-wrapper');
-                if (sit) sit.insertBefore(mk('Ihre Aktuelle Situation', 'Analyse'), sit.firstChild);
+                if (sit) sit.insertBefore(mk('Ihre Aktuelle Situation'), sit.firstChild);
 
                 const off = document.querySelector('.print-offer-view');
-                if (off) off.insertBefore(mk('Ihr Persönliches Angebot', 'Angebot'), off.firstChild);
+                if (off) off.insertBefore(mk('Ihr Persönliches Angebot'), off.firstChild);
             };
 
             window.addEventListener('beforeprint', ensurePrintHeaders);
