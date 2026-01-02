@@ -876,7 +876,10 @@ html, body {
             const [offerData, setOfferData] = useState(initialOfferData);
             const [canvasStatus, setCanvasStatus] = useState({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' });
             
-            const [customerSignature, setCustomerSignature] = useState(null); 
+            const [customerSignature, setCustomerSignature] = useState(null);
+            const SHOP_STAMP_TEXT = "o2 Shop Crailsheim";
+            const SHOP_STAMP_QR = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAIAAAABc2X6AAAEl0lEQVR4AeybUY7cOBBDvbn/nXef8wJ2bclyOzONILA8INgsiqXpkoT5CJAf/y7282Pbtn++9LMNP24T2xKOo8ARlmHNkROIGDMXHXbYB+ZjHbwGvv602+nkdPVTZsM4iplvO5yAwi6YpQpXr3Dteg1c3RvrZ+Bt+jdsm/zkUU3Wf9ljrDmt/NV24YPXfojD1ueGD4/lRuYHbjjPyTeZw4mv00pN2cYxoOMqbPib/IGBv/kN/nD7Bwbm7IVfXQ1bwugKnAZvMqYlrIMQlt/kDwz8zW/wh9ufgbetPr+qZ1fhewsnlt44TbSW5JtoXWPZ8inHJM5zwxzCnbG9bjgP7K2YHYhvKe2J6bQS0zycJQVLwnLGZq5w3eE1cHVvrPeBOeMvIIeSXg87viUcR5G85cgJ0AtOAkleFGy1D8zHOlhyYJ7NFeQVzMK+q8Qsw/HTHsfM6BtwFW6BVhLWQQhL2FJe8oYdfRHeb5jXAjIwuiJ+RF1Fx1fgCN6S0H/LdsF2wbYghCV8WGLSCwgItGBJ4O8D87EOzgbOqXgclmFN2FOEs6TAEZZhTTgOmxyCDMgS+hxJNpEu/LOBWb4flhzYp5V7t4TjHAoCDbPn0NrT9TZvMu3J64eb30picRBL3jBzr4P9hn0zmdkS5jGA+BGYgECDgZhkDmEMThINEkYLA+rK+uG6hM4+B4Gt/AMA0RWw37BHkmktYU8I0aCf/FvR8pZwGt0fRzTf1ZHHmO3hMYCzD8zHOlhyYN/A7JJdrezrGvNmXIUtYZMIYQmTEegKTdj8yIYJiAQsw8bgBNBL3jBzr4P9hn0DmTkPQH9kA6Ov4yqcDfVTRpCpiB9hYzh+EwnU3dDxa34fuNa31wsPnAcQ4W3zNhoMxDQG6yCEMbiVOA0t4D6wPkJYwoclZtsWR9ASLHzDOYMIjyfH9tY3MMu7CrttZVvikDmEsXAycdwhfkQCOM8Ncwi3xuuGfQ+VZ4P7QrKaljiKmW97ZZPVUTffEnb/MI6I04SrMP5rYIrbgwGfgTmE/4OXIHxmsGVSOELHVdgSdhVH4AhLuJU4Qv8tuz9s0l4YR+jLzw17Dj+5HQ9nJmb+z6Yp2QUngT5HkoqELWc8xqrz3PDs3O7i7zfsQx0nOvddhfNgFNnHEiZTkUDMOOci+SbSxe8CKQ/FPvDhwl3NJQfmGXwB4xPwpWUrS1gneRyhD2dJ4SrMEtCsjAmqc6jZoYHYkjfM3KAdxklJuCJJzZRcgtA/4bQoTpIuzWL6YcONF77hdhJ3LQ9u2Hc48uwIWjKxPC1FYgk0MQZsTCyBJhJQZNWy8cHALXGzcqmB97v75MC+wLyoiP33lP8sYwmbh00iBEsVmiMnkyX3iR+hD+N8cmC2+/vxyYE5QpCZc/BxmiAs9NXX2S44LeiK+PWbfHLg+sv+Wv0MXP665CUo3l5ai+VFKS62u0nlNFYTPfo6LAnLxs8NtwO5Xfm6YR/eFZ4dgr0+p8otbwyObxhHxLd0FW5+KwnrIAQtQl9+DWx9e15yYO/9dzlvoTXGjzDQSk3ZJTVsCaMBogHzClqX5X8AAAD//1oR/6MAAAAGSURBVAMANy00KRKTFV4AAAAASUVORK5CYII=";
+ 
             
             const [imageTransform, setImageTransform] = useState({ 
                 offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, 
@@ -1242,7 +1245,26 @@ html, body {
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
                                 <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2 relative h-12 flex justify-end">{customerSignature ? (<div className="p-1 h-full w-full max-w-[300px] border-b-2 border-slate-400 flex items-end justify-end"><img src={customerSignature} alt="Kundenunterschrift" className="h-full object-contain object-right-bottom" /></div>) : (<div className="p-2 h-12 bg-slate-50 border border-slate-300 rounded-lg text-center text-sm text-slate-400 font-medium flex items-center justify-center w-full">Feld für Stempel / Unterschrift Kunde</div>)}</div></div>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2">
+  <div className="h-12 w-full bg-white border border-slate-300 rounded-lg overflow-hidden flex items-stretch">
+    {/* Shop-Stempel (fix links) */}
+    <div className="shrink-0 flex items-center gap-2 px-2 bg-slate-50 border-r border-slate-200">
+      <img src={SHOP_STAMP_QR} alt="QR Code" className="h-9 w-9 object-contain" />
+      <div className="flex flex-col leading-tight">
+        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">Stempel</span>
+        <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap">{SHOP_STAMP_TEXT}</span>
+      </div>
+    </div>
+    {/* Kunden-Unterschrift (rechts, ohne Layout-Shift) */}
+    <div className="flex-1 flex items-end justify-end px-2">
+      {customerSignature ? (
+        <img src={customerSignature} alt="Kundenunterschrift" className="h-10 w-full object-contain object-right-bottom" />
+      ) : (
+        <span className="text-xs text-slate-400 font-medium">Unterschrift Kunde</span>
+      )}
+    </div>
+  </div>
+</div></div>
                                 {customerSignature && (<div className="w-full flex justify-end mt-1 pr-[1.25rem]"><span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unterschrift Kunde</span></div>)}
                                 <div className="mt-4 pt-4 border-t border-slate-100"><p className="text-[10px] text-slate-400 leading-tight">**Datenschutzerklärung (Platzhalter):** Mit Ihrer Unterschrift bestätigen Sie die Richtigkeit der angegebenen Kosten und nehmen die Vertragsdetails sowie die beigefügte Datenschutzerklärung zur Kenntnis. Sie stimmen der elektronischen Speicherung Ihrer Daten zum Zwecke der Vertragsabwicklung zu. Widerrufsbelehrung liegt bei.</p></div>
                             </div>
