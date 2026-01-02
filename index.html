@@ -117,7 +117,7 @@
             overflow: hidden; touch-action: none;
         }
         
-        /* --- PRINT STYLES (EXAKT 2 SEITEN A4) --- */
+        /* --- PRINT STYLES (EXAKT 2 SEITEN A4 mit GRAFIKEN) --- */
         
         @media print {
             @page {
@@ -125,11 +125,18 @@
                 margin: 0.5cm;
             }
             
+            /* ZWINGEND: Hintergrundgrafiken & Farben drucken */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
             html, body {
                 width: 100%;
                 height: auto !important;
                 overflow: visible !important;
-                background-color: #ffffff !important;
+                background-color: #ffffff !important; /* Weißer Papierhintergrund */
                 margin: 0 !important;
                 padding: 0 !important;
             }
@@ -139,7 +146,8 @@
             .footer-bar, 
             .fixed.inset-0.z-50, /* Modals */
             aside,
-            button {
+            button,
+            .fixed.inset-0.z-\[60\] /* Higher z-index modals */ {
                 display: none !important;
             }
 
@@ -170,6 +178,7 @@
                 
                 margin: 0 !important;
                 padding: 0 !important;
+                background-color: transparent !important;
             }
 
             /* Layout Anpassung Situation im Druck: Sidebar ist weg, also Full Width */
@@ -178,6 +187,17 @@
                 border: none !important;
                 box-shadow: none !important;
                 width: 100% !important;
+            }
+            
+            /* Hintergrundfarbe der Karten erzwingen */
+            .bg-white {
+                background-color: #ffffff !important;
+            }
+            .bg-slate-100 {
+                background-color: #f1f5f9 !important;
+            }
+            .bg-blue-50 {
+                background-color: #eff6ff !important;
             }
 
             /* --- SEITE 2: ANGEBOT --- */
@@ -200,6 +220,7 @@
                 
                 margin: 0 !important;
                 padding: 0 !important;
+                background-color: transparent !important;
             }
             
             /* Angebots-Container Anpassung */
@@ -737,7 +758,7 @@
 
             const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
             const startDrawing = useCallback((e, ref, key) => { e.preventDefault(); const canvas = ref?.current; if(!canvas) return; const pointerType = e.pointerType; const isPenInput = pointerType === 'pen'; const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen'; const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen'); 
-            const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
+            const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = normalizedBaseLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
             const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (!cssX || !cssY) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
             const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
 
