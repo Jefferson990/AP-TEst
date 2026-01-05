@@ -592,6 +592,44 @@ html, body {
         line-height:3rem !important; /* h-12 */
     }
 
+
+
+/* ===== SHARE COVER/OUTRO STYLES (nur im Iframe Share-PDF) ===== */
+.share-cover, .share-outro{
+  width:100%;
+  box-sizing:border-box;
+  min-height:520px;
+  border-radius:22px;
+  padding:28px;
+  background: linear-gradient(135deg,#001942 0%,#0050ff 100%);
+  color:#fff;
+  overflow:hidden;
+}
+.share-cover-inner{max-width:980px;margin:0 auto;text-align:center;}
+.share-cover-badge{font-weight:900;font-size:11px;letter-spacing:0.45em;color:rgba(255,255,255,0.70);margin-top:10px;}
+.share-cover-title{font-weight:1000;font-size:78px;line-height:0.92;letter-spacing:-0.04em;margin-top:18px;}
+.share-cover-title-accent{color:#7dd3fc;}
+.share-cover-date{margin-top:14px;font-weight:900;letter-spacing:0.25em;font-size:13px;color:rgba(255,255,255,0.80);}
+.share-cover-card{margin:34px auto 0 auto;max-width:760px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);border-radius:28px;padding:26px;position:relative;}
+.share-cover-chip{position:absolute;left:50%;top:-14px;transform:translateX(-50%);background:#2563eb;color:#fff;padding:6px 16px;border-radius:999px;font-weight:900;font-size:10px;letter-spacing:0.18em;}
+.share-cover-shop-name{font-size:26px;font-weight:1000;letter-spacing:-0.02em;}
+.share-cover-shop-addr{margin-top:6px;color:rgba(255,255,255,0.82);font-weight:600;font-size:13px;}
+
+.share-outro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1060px;margin:0 auto;}
+.share-outro-card{background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);border-radius:28px;padding:22px;text-align:center;}
+.share-outro-card-focus{border-color:rgba(59,130,246,0.55);background:rgba(255,255,255,0.12);transform:scale(1.02);}
+.share-outro-icon{width:56px;height:56px;border-radius:18px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;font-weight:1000;}
+.share-outro-h{font-size:18px;font-weight:1000;letter-spacing:-0.02em;}
+.share-outro-p{margin-top:8px;font-size:11px;color:rgba(255,255,255,0.80);line-height:1.35;}
+.share-outro-small{font-size:10px;color:rgba(255,255,255,0.70);font-weight:700;}
+.share-outro-qr{margin:14px auto 10px auto;width:140px;height:140px;background:#fff;border-radius:18px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,0.25);}
+.share-outro-qr img{width:100%;height:100%;object-fit:contain;display:block;}
+.share-outro-link{font-size:9px;word-break:break-all;color:rgba(255,255,255,0.65);margin-top:6px;font-weight:800;}
+.share-outro-amount{margin-top:6px;font-size:44px;font-weight:1000;color:#93c5fd;}
+.share-outro-voucher{margin-top:10px;padding:12px 10px;border:2px dashed rgba(255,255,255,0.35);border-radius:18px;font-family:monospace;font-size:16px;font-weight:1000;background:rgba(0,0,0,0.18);letter-spacing:0.12em;}
+
+    doc.head.appendChild(styleEl);
+
 </style>
 </head>
 <body>
@@ -897,7 +935,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             'Offer1Title': '1. Hardware, Anbieter & Nutzung', 
             'Offer2Title': '2. Haushalt und weitere Produkte', 
             'Offer3Title': '3. Fernsehen & Wi-Fi', 
-            'CostHeader': 'Kostenübersicht & Abschluss', 'CostEinmalig': 'EINMALIG (€)', 'CostMonatlich1': 'MONATLICH IM 1. JAHR (€)', 'CostMonatlich2': 'MONATLICH IM 2. JAHR (€)', 'AgentLabel': 'PERSÖNLICHER AGENT', 'DateLabel': 'DATUM', 'Kundenname_Label': 'Kundenname', 'Rufnummer_Label': 'Rufnummer', 'Anbieter_Label': 'Anbieter', 'Hardware_Label': 'Hardware', 'Nutzung_Label': 'Nutzung', 'Haushalt_Label': 'Haushalt', 'Weitere Produkte_Label': 'Weitere Produkte', 
+            'CostHeader': 'Kostenübersicht & Abschluss', 'CostEinmalig': 'EINMALIG (€)', 'CostMonatlich1': 'MONATLICH IM 1. JAHR (€)', 'CostMonatlich2': 'MONATLICH IM 2. JAHR (€)', 'AgentLabel': 'PERSÖNLICHER AGENT', 'DateLabel': 'DATUM', 'ValidUntilLabel': 'ANGEBOT GÜLTIG BIS', 'Kundenname_Label': 'Kundenname', 'Rufnummer_Label': 'Rufnummer', 'Anbieter_Label': 'Anbieter', 'Hardware_Label': 'Hardware', 'Nutzung_Label': 'Nutzung', 'Haushalt_Label': 'Haushalt', 'Weitere Produkte_Label': 'Weitere Produkte', 
             'Fernsehen_Label': 'Fernsehen', 'WiFi_Label': 'WiFi', 'Gesamtkosten_Label': 'Gesamtkosten', 'StatusOpen': 'Offen', 'StatusClosed': 'Abgeschlossen', 'StatusNeutral': 'Neutral'
         };
         
@@ -1537,7 +1575,67 @@ const resolveUserName = (raw) => {
 
 
         // --- MAIN APP ---
-        function App() {
+        
+        const OfferValidityModal = ({ isOpen, mode, setMode, value, onValueChange, canvasRef, hasInk, onClearInk, startDrawing, draw, stopDrawing, onCancel, onConfirm }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 print-hide-toast">
+                    <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-black text-slate-400 uppercase tracking-[0.25em]">Angebot</div>
+                                <div className="text-xl font-black text-slate-900">Angebotsgültigkeit</div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setMode('keyboard')} className={`px-3 py-1.5 rounded-lg text-xs font-black border ${mode === 'keyboard' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Digital</button>
+                                <button onClick={() => setMode('pen')} className={`px-3 py-1.5 rounded-lg text-xs font-black border ${mode === 'pen' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Stift</button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-3">
+                            <div className="text-sm font-bold text-slate-700">Bis wann ist dieses Angebot gültig?</div>
+                            {mode === 'keyboard' ? (
+                                <input
+                                    type="date"
+                                    value={value || ''}
+                                    onChange={(e) => onValueChange(e.target.value)}
+                                    className="w-full h-12 px-4 rounded-xl border border-slate-300 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                />
+                            ) : (
+                                <div className="relative w-full h-24 rounded-xl border border-slate-300 bg-white overflow-hidden">
+                                    <canvas
+                                        ref={canvasRef}
+                                        className="absolute inset-0 w-full h-full drawing-canvas"
+                                        style={{ touchAction: 'none', background: 'transparent' }}
+                                        onPointerDown={(e) => startDrawing(e, canvasRef, 'offer_valid_until')}
+                                        onPointerMove={(e) => draw(e, canvasRef, 'offer_valid_until')}
+                                        onPointerUp={(e) => stopDrawing(e, canvasRef)}
+                                        onPointerLeave={(e) => stopDrawing(e, canvasRef)}
+                                    />
+                                    <button onClick={onClearInk} className="absolute right-2 top-2 px-3 py-1.5 rounded-lg bg-white/90 border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-50">
+                                        Löschen
+                                    </button>
+                                </div>
+                            )}
+                            <div className="text-[11px] text-slate-500 leading-snug">
+                                Wird im Ausdruck zwischen <b>Datum</b> und <b>Stempel</b> angezeigt.
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+                            <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-black text-slate-600 hover:bg-white border border-slate-200">
+                                Abbrechen
+                            </button>
+                            <button onClick={() => onConfirm()} className="px-5 py-2 rounded-xl text-sm font-black bg-blue-600 text-white hover:bg-blue-700">
+                                Speichern & Drucken
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+function App() {
             const [view, setView] = useState('situation'); 
             const [activeCategory, setActiveCategory] = useState(null); 
             const [questionIndex, setQuestionIndex] = useState(0); 
@@ -1576,7 +1674,7 @@ const resolveUserName = (raw) => {
 
                 // Angebot / Kosten
                 offer1: [], offer2: [], offer3: [],
-                cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: []
+                cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [], offer_valid_until: []
             });
 
             const isDrawingRef = useRef(false);
@@ -1630,7 +1728,8 @@ const toolRef = useRef('pen');
             const [textStyle, setTextStyle] = useState({ bold: false, italic: false });
             const [textData, setTextData] = useState({ 
                 AgentName: '', 
-                DateValue: '', 
+                DateValue: '',
+                OfferValidUntil: '', 
                 offer1: '', 
                 offer2: '', 
                 offer3: '' 
@@ -1647,6 +1746,9 @@ const toolRef = useRef('pen');
             const [showFinishTypeModal, setShowFinishTypeModal] = useState(false); // NEW MODAL STATE
             
             const [showReferralModal, setShowReferralModal] = useState(false);
+            const [showValidityModal, setShowValidityModal] = useState(false);
+            const pendingPrintRef = useRef(null);
+            const [validityInputMode, setValidityInputMode] = useState('keyboard');
             
             const [showSkipReasonModal, setShowSkipReasonModal] = useState(false); 
             const [skipReason, setSkipReason] = useState(''); 
@@ -1707,6 +1809,8 @@ const toolRef = useRef('pen');
             const offerCost3Ref = useRef(null);
             const offerAgentRef = useRef(null);
             const offerDateRef = useRef(null);
+            const offerValidUntilRef = useRef(null);
+            const offerValidUntilModalRef = useRef(null);
             const fileInputRef = useRef(null); 
 
             const [displayLanguage, setDisplayLanguage] = useState('de');
@@ -1732,7 +1836,20 @@ const toolRef = useRef('pen');
             const handleImagePlacement = (targetCanvasKey) => { if (currentImagePayload) { setCanvasImages(prev => ({ ...prev, [targetCanvasKey]: currentImagePayload.url })); setImageTransform(prev => ({ ...prev, [targetCanvasKey]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild "${currentImagePayload.name}" zu ${targetCanvasKey.toUpperCase()} hinzugefügt.`); } setIsImageSelectModalOpen(false); setCurrentImagePayload(null); };
             const handleClearImage = (key) => { setCanvasImages(prev => ({ ...prev, [key]: null })); setImageTransform(prev => ({ ...prev, [key]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild von ${key.toUpperCase()} entfernt.`); };
             
-            const handlePrint = useCallback(() => { window.print(); }, []);
+            const requestPrint = useCallback((doPrint) => {
+                const hasText = !!String(getDisplayText('OfferValidUntil') || '').trim();
+                const hasInk = !!(drawnStrokes.offer_valid_until && drawnStrokes.offer_valid_until.length);
+                if (!hasText && !hasInk) {
+                    pendingPrintRef.current = (typeof doPrint === 'function') ? doPrint : (() => window.print());
+                    // default: Keyboard (schnell) – kann im Modal auf Stift wechseln
+                    setValidityInputMode('keyboard');
+                    setShowValidityModal(true);
+                    return;
+                }
+                (typeof doPrint === 'function' ? doPrint : (() => window.print()))();
+            }, [drawnStrokes, getDisplayText]);
+
+            const handlePrint = useCallback(() => { requestPrint(() => window.print()); }, [requestPrint]);
 
             
             const getAgentDisplayNameForUpload = () => {
@@ -1799,7 +1916,7 @@ const handleFinishOfferClick = () => {
             
             const handleSkipToOffer = (reasonData) => { setSkipReason(reasonData); setShowSkipReasonModal(false); setView('offer'); triggerToast(`Situation übersprungen. Grund: ${reasonData.substring(0, 30)}...`); };
 
-            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [] }); setTextData({ AgentName: '', DateValue: '', offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
+            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [], offer_valid_until: [] }); setTextData({ AgentName: '', DateValue: '', OfferValidUntil: '', offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
 
             const Toast = ({ message }) => { if (!message) return null; return (<div className="print-hide-toast fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg border border-slate-700 animate-in fade-in duration-300"><div className="flex items-center gap-2"><Icon d={ICONS.Clipboard} size={16} className="text-green-400"/><span className="text-sm font-medium">{message}</span></div></div>); };
 
@@ -1818,7 +1935,7 @@ const handleFinishOfferClick = () => {
                             'Fernsehen': 'sit_Fernsehen', 'WiFi': 'sit_WiFi', 'Gesamtkosten': 'sit_Gesamtkosten',
                             'offer1': 'offer1', 'offer2': 'offer2', 'offer3': 'offer3',
                             'cost_einmalig': 'cost_einmalig', 'cost_monatlich1': 'cost_monatlich1', 'cost_monatlich2': 'cost_monatlich2',
-                            'AgentName': 'agent_name', 'DateValue': 'date_field',
+                            'AgentName': 'agent_name', 'DateValue': 'date_field', 'OfferValidUntil': 'offer_valid_until',
                             'skip_reason': 'skip_reason'
                         };
                         const k = map[key];
@@ -2145,6 +2262,7 @@ const handleFinishOfferClick = () => {
                     else if (ref === offerCost3Ref) key = 'cost_monatlich2';
                     else if (ref === offerAgentRef) key = 'agent_name';
                     else if (ref === offerDateRef) key = 'date_field';
+                    else if (ref === offerValidUntilRef || ref === offerValidUntilModalRef) key = 'offer_valid_until';
                     else if (ref === skipReasonCanvasRef) key = 'skip_reason';
 
                     if (key) {
@@ -2167,7 +2285,7 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
                 const rawKey = `${key}Raw`;
                 setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val }));
             };
-            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? ''; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (() => { const showDigital = !!digitalTouchedRef.current[strokesKey]; const displayValue = showDigital ? rawValue : ''; return (<input type={type} value={displayValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full px-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'offer-cost-input text-xl font-black text-slate-800 bg-transparent' : 'offer-meta-input text-slate-700 bg-transparent'}`}/>); })()}</div></div>); };
+            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? ''; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } else if (key === 'gueltig') { ref = offerValidUntilRef; rawValue = getDisplayText('OfferValidUntil'); strokesKey = 'offer_valid_until'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } else if (key === 'gueltig') { handleTextChange('OfferValidUntil', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (() => { const showDigital = !!digitalTouchedRef.current[strokesKey]; const displayValue = showDigital ? rawValue : ''; const hasInk = !!(drawnStrokes[strokesKey] && drawnStrokes[strokesKey].length); if (!showDigital && hasInk) { return (<canvas ref={ref} className="absolute inset-0 w-full h-full drawing-canvas" style={{ pointerEvents: 'none', touchAction: 'none', background: 'transparent' }} />); } return (<input type={type} value={displayValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full px-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'offer-cost-input text-xl font-black text-slate-800 bg-transparent' : 'offer-meta-input text-slate-700 bg-transparent'}`}/>); })()}</div></div>); };
             
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
@@ -2244,7 +2362,9 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
          .pdf-share-mode .print-page-header .title{font-size:28px;font-weight:900;color:#0b1e42;letter-spacing:-0.02em;}
          .pdf-share-mode .print-page-header .print-header-right{display:flex;align-items:center;gap:10px;}
          .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;object-fit:contain;}`;
-    doc.head.appendChild(styleEl);
+
+
+
 
     const base = doc.createElement('base');
     base.href = window.location.href;
@@ -2299,6 +2419,87 @@ cloneSituation.style.display = 'flex';
 cloneSituation.style.height = 'auto';
 cloneSituation.style.overflow = 'visible';
 
+// --- Share: COVER + OUTRO (nur beim Teilen, nicht beim Drucken) ---
+const pad2 = (n) => String(n).padStart(2,'0');
+const now = new Date();
+const yy = String(now.getFullYear()).slice(-2);
+const mm = pad2(now.getMonth()+1);
+const dd = pad2(now.getDate());
+const shareDateDisplay = now.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+const voucherCode = `CRA-o2-${yy}/${mm}/${dd}`;
+
+// Simple QR (remote) – falls offline/blocked, bleibt das Feld leer, Textlink bleibt sichtbar
+const qrUrl = (data, color='001942') => `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(data)}&color=${color}&bgcolor=ffffff&margin=1`;
+
+const makeCoverContent = () => {
+    const wrap = doc.createElement('div');
+    wrap.className = 'share-cover';
+    wrap.innerHTML = `
+      <div class="share-cover-inner">
+        <div class="share-cover-badge">EXKLUSIV FÜR SIE ERSTELLT</div>
+        <div class="share-cover-title">
+          <div>Ihr persönliches</div>
+          <div class="share-cover-title-accent">Angebot</div>
+        </div>
+        <div class="share-cover-date">VOM ${shareDateDisplay}</div>
+
+        <div class="share-cover-card">
+          <div class="share-cover-chip">CRAILSHEIM</div>
+          <div class="share-cover-shop">
+            <div class="share-cover-shop-name">o2 Shop Crailsheim</div>
+            <div class="share-cover-shop-addr">Karlstraße 37, 74564 Crailsheim</div>
+          </div>
+        </div>
+      </div>
+    `;
+    return wrap;
+};
+
+const makeOutroContent = () => {
+    const wrap = doc.createElement('div');
+    wrap.className = 'share-outro';
+    const googleReviewUrl = (window.GOOGLE_REVIEW_URL || 'https://share.google/IWbGLWPI83ByOirz1');
+    const instagramUrl = (window.INSTAGRAM_URL || 'https://www.instagram.com/o2shop_crailsheim/');
+    wrap.innerHTML = `
+      <div class="share-outro-grid">
+        <div class="share-outro-card">
+          <div class="share-outro-icon">★</div>
+          <div class="share-outro-h">Kurzes Feedback?</div>
+          <div class="share-outro-p">Zufrieden mit der Beratung?<br/>Wir freuen uns über 5 Sterne!</div>
+          <div class="share-outro-qr">
+            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${qrUrl(googleReviewUrl,'0050ff')}" alt="QR Google" />
+          </div>
+          <div class="share-outro-link">${googleReviewUrl}</div>
+        </div>
+
+        <div class="share-outro-card share-outro-card-focus">
+          <div class="share-outro-icon">🎟️</div>
+          <div class="share-outro-h">Dankeschön</div>
+          <div class="share-outro-amount">10 €</div>
+          <div class="share-outro-p">Zubehör-Bonus<br/><span class="share-outro-small">Einlösbar für hochwertige Schutzfolien direkt bei uns.</span></div>
+          <div class="share-outro-voucher">${voucherCode}</div>
+          <div class="share-outro-small">* Nur im Shop vor Ort für Folien einlösbar.</div>
+        </div>
+
+        <div class="share-outro-card">
+          <div class="share-outro-icon">⌁</div>
+          <div class="share-outro-h">Folgen & Sparen</div>
+          <div class="share-outro-p">News, Gewinnspiele und Deals<br/>direkt aus Crailsheim.</div>
+          <div class="share-outro-qr">
+            <img crossorigin="anonymous" referrerpolicy="no-referrer" src="${qrUrl(instagramUrl,'bc1888')}" alt="QR Insta" />
+          </div>
+          <div class="share-outro-link">@o2shop_crailsheim</div>
+          <div class="share-outro-link">${instagramUrl}</div>
+        </div>
+      </div>
+    `;
+    return wrap;
+};
+
+// Cover als erste Seite
+const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
+container.appendChild(coverPage);
+
 const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
 container.appendChild(page1);
 
@@ -2311,6 +2512,10 @@ cloneOffer.style.overflow = 'visible';
 
 const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
 container.appendChild(page2);
+
+// Outro als letzte Seite
+const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
+container.appendChild(outroPage);
 
     // Layout settle
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -2481,14 +2686,33 @@ const file = new File([blob], filename, { type: 'application/pdf' });
             return;
         }
 
-        await navigator.share({
-            title: 'Angebot (PDF)',
-            text: 'PDF-Angebot teilen',
-            files: [file]
-        });
-
-        hideOverlay();
-        triggerToast('PDF geteilt.');
+        try {
+            await navigator.share({
+                title: 'Angebot (PDF)',
+                text: 'PDF-Angebot teilen',
+                files: [file]
+            });
+            hideOverlay();
+            triggerToast('PDF geteilt.');
+        } catch (shareErr) {
+            // Häufig auf Tablets: User-Activation endet nach längerem Rendern -> NotAllowedError.
+            // Fallback: PDF herunterladen/öffnen, damit man es manuell teilen kann.
+            console.warn('navigator.share failed:', shareErr);
+            hideOverlay();
+            const name = (shareErr && shareErr.name) ? shareErr.name : '';
+            if (name === 'AbortError') {
+                triggerToast('Teilen abgebrochen.');
+            } else if (name === 'NotAllowedError') {
+                triggerToast('Teilen nicht möglich (Browser blockiert). PDF wird gespeichert.');
+            } else {
+                triggerToast('Teilen nicht möglich. PDF wird gespeichert.');
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
     } catch (err) {
         console.error(err);
         // Best-effort cleanup
@@ -2514,6 +2738,34 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                     <QuestionModal isOpen={!!activeCategory && !showAdmin} onClose={() => setActiveCategory(null)} category={activeCategory} question={getCurrentQuestion()} onNextQuestion={handleNextQuestion} />
                     <ReferralModal isOpen={showReferralModal} onClose={() => setShowReferralModal(false)} onPrint={handlePrint} />
                     <FinishTypeModal isOpen={showFinishTypeModal} onClose={() => setShowFinishTypeModal(false)} onSelect={handleFinishTypeSelection} />
+
+                    <OfferValidityModal
+                        isOpen={showValidityModal}
+                        mode={validityInputMode}
+                        setMode={setValidityInputMode}
+                        value={getDisplayText('OfferValidUntil')}
+                        onValueChange={(v) => {
+                            handleTextChange('OfferValidUntil', v);
+                            try { digitalTouchedRef.current['offer_valid_until'] = true; } catch(e) {}
+                        }}
+                        canvasRef={offerValidUntilModalRef}
+                        hasInk={!!(drawnStrokes.offer_valid_until && drawnStrokes.offer_valid_until.length)}
+                        onClearInk={() => clearCanvas(offerValidUntilModalRef, 'offer_valid_until')}
+                        startDrawing={startDrawing}
+                        draw={draw}
+                        stopDrawing={stopDrawing}
+                        onCancel={() => { setShowValidityModal(false); pendingPrintRef.current = null; }}
+                        onConfirm={() => {
+                            const hasText = !!String(getDisplayText('OfferValidUntil') || '').trim();
+                            const hasInk = !!(drawnStrokes.offer_valid_until && drawnStrokes.offer_valid_until.length);
+                            if (!hasText && !hasInk) { triggerToast('Bitte Gültigkeitsdatum eingeben.'); return; }
+                            setShowValidityModal(false);
+                            const fn = pendingPrintRef.current;
+                            pendingPrintRef.current = null;
+                            setTimeout(() => { (fn || (() => window.print()))(); }, 50);
+                        }}
+                    />
+
 
                     <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} />
                     <AdminModal isOpen={showAdmin} onClose={()=>setShowAdmin(false)} questions={questionsData} onUpdate={handleUpdateQuestions} oneDriveLink={oneDriveLink} onUpdateLink={setOneDriveLink} />
@@ -2613,7 +2865,7 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
                                 <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}<div className="col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}{renderOfferInput('gueltig', 'ValidUntilLabel', 'date')}<div className="col-span-2">
   <div className="h-12 w-full bg-white border border-slate-300 rounded-lg overflow-hidden flex items-stretch">
     {/* Shop-Stempel (fix links) */}
     <div className="shrink-0 flex items-center gap-2 px-2 bg-slate-50 border-r border-slate-200">
