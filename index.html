@@ -578,7 +578,21 @@ html, body {
         }
     }
 
-    </style>
+    
+    /* --- PATCH v50_23: Zentrierung + digitale Sichtbarkeit --- */
+    .offer-cost-input{
+        padding-top:0 !important;
+        padding-bottom:0 !important;
+        line-height:3rem !important; /* h-12 */
+        text-align:center !important;
+    }
+    .offer-meta-input{
+        padding-top:0 !important;
+        padding-bottom:0 !important;
+        line-height:3rem !important; /* h-12 */
+    }
+
+</style>
 </head>
 <body>
     <div id="root"></div>
@@ -1574,6 +1588,8 @@ const toolRef = useRef('pen');
             const opacityRef = useRef(0.85);
             const colorRef = useRef('#0044ff'); 
 
+            const digitalTouchedRef = useRef({}); // merkt: Feld wurde per Tastatur genutzt
+
 
             // Sync GestureMode-Ref (für Callbacks) + Canvas-TouchAction sofort anpassen
             useEffect(() => {
@@ -1613,8 +1629,8 @@ const toolRef = useRef('pen');
             const [textSize, setTextSize] = useState('medium'); 
             const [textStyle, setTextStyle] = useState({ bold: false, italic: false });
             const [textData, setTextData] = useState({ 
-                AgentName: 'E.I', 
-                DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), 
+                AgentName: '', 
+                DateValue: '', 
                 offer1: '', 
                 offer2: '', 
                 offer3: '' 
@@ -1652,7 +1668,7 @@ const toolRef = useRef('pen');
             const parseCost = (val) => { if (!val) return 0; return parseFloat(val.replace(',', '.')) || 0; };
             const totalCost = parseCost(costState.mobile) + parseCost(costState.landline) + parseCost(costState.tv);
             
-            const initialOfferData = { einmalig: 0, monatlich1: 0, monatlich2: 0, einmaligRaw: '0', monatlich1Raw: '0', monatlich2Raw: '0' };
+            const initialOfferData = { einmalig: 0, monatlich1: 0, monatlich2: 0, einmaligRaw: '', monatlich1Raw: '', monatlich2Raw: '' };
             const [offerData, setOfferData] = useState(initialOfferData);
             const [canvasStatus, setCanvasStatus] = useState({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' });
             
@@ -1783,7 +1799,7 @@ const handleFinishOfferClick = () => {
             
             const handleSkipToOffer = (reasonData) => { setSkipReason(reasonData); setShowSkipReasonModal(false); setView('offer'); triggerToast(`Situation übersprungen. Grund: ${reasonData.substring(0, 30)}...`); };
 
-            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [] }); setTextData({ AgentName: 'E.I', DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
+            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [] }); setTextData({ AgentName: '', DateValue: '', offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
 
             const Toast = ({ message }) => { if (!message) return null; return (<div className="print-hide-toast fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg border border-slate-700 animate-in fade-in duration-300"><div className="flex items-center gap-2"><Icon d={ICONS.Clipboard} size={16} className="text-green-400"/><span className="text-sm font-medium">{message}</span></div></div>); };
 
@@ -1791,7 +1807,28 @@ const handleFinishOfferClick = () => {
             const handleCategoryClick = (cat) => { setActiveCategory(cat); setQuestionIndex(0); };
             const handleNextQuestion = () => setQuestionIndex((prev) => (prev + 1) % (questionsData[activeCategory || 'default'].length));
             const getCurrentQuestion = () => questionsData[activeCategory || 'default'][questionIndex];
-            const handleTextChange = (key, val) => { setTextData(prev => ({ ...prev, [key]: val })); if (displayLanguage !== 'de') { setTranslatedText(prev => ({ ...prev, [displayLanguage]: { ...prev[displayLanguage], [key]: val } })); } };
+            const handleTextChange = (key, val) => {
+                setTextData(prev => ({ ...prev, [key]: val }));
+                // Merken: dieses Feld wurde digital (Tastatur) genutzt -> im Druck/Share anzeigen
+                try {
+                    if (inputMode === 'keyboard') {
+                        const map = {
+                            'Kundenname': 'sit_Kundenname', 'Rufnummer': 'sit_Rufnummer', 'Anbieter': 'sit_Anbieter', 'Hardware': 'sit_Hardware',
+                            'Nutzung': 'sit_Nutzung', 'Haushalt': 'sit_Haushalt', 'Weitere Produkte': 'sit_WeitereProdukte', 'WeitereProdukte': 'sit_WeitereProdukte',
+                            'Fernsehen': 'sit_Fernsehen', 'WiFi': 'sit_WiFi', 'Gesamtkosten': 'sit_Gesamtkosten',
+                            'offer1': 'offer1', 'offer2': 'offer2', 'offer3': 'offer3',
+                            'cost_einmalig': 'cost_einmalig', 'cost_monatlich1': 'cost_monatlich1', 'cost_monatlich2': 'cost_monatlich2',
+                            'AgentName': 'agent_name', 'DateValue': 'date_field',
+                            'skip_reason': 'skip_reason'
+                        };
+                        const k = map[key];
+                        if (k) digitalTouchedRef.current[k] = true;
+                    }
+                } catch(e){}
+                if (displayLanguage !== 'de') {
+                    setTranslatedText(prev => ({ ...prev, [displayLanguage]: { ...prev[displayLanguage], [key]: val } }));
+                }
+            };
             const handleCostChange = (key, e) => { const val = e.target.value; setCostState(prev => ({ ...prev, [key]: val })); };
             const handleUpdateQuestions = (cat, newQs) => { setQuestionsData(prev => ({...prev, [cat]: newQs})); };
             const isFormValid = customerType !== "" && segment !== "" && techSituation !== "";
@@ -2123,8 +2160,14 @@ const handleFinishOfferClick = () => {
 const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
             const toggleTech = (val) => setShowTechModal(val);
             const penTools = [{ id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' }, { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' }, { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' }];
-            const handleOfferCostChange = (key, value) => { const cleanValue = value.replace(',', '.'); let val = parseFloat(cleanValue); const rawKey = `${key}Raw`; setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val })); };
-            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? '0'; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (<input type={type} value={rawValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full p-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'text-xl font-black text-slate-800 bg-transparent' : 'text-slate-700 bg-transparent'}`}/>)}</div></div>); };
+            const handleOfferCostChange = (key, value) => {
+                try { if (inputMode === 'keyboard') { digitalTouchedRef.current[`cost_${key}`] = true; } } catch(e){}
+                const cleanValue = value.replace(',', '.');
+                let val = parseFloat(cleanValue);
+                const rawKey = `${key}Raw`;
+                setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val }));
+            };
+            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? ''; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (() => { const showDigital = !!digitalTouchedRef.current[strokesKey]; const displayValue = showDigital ? rawValue : ''; return (<input type={type} value={displayValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full px-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'offer-cost-input text-xl font-black text-slate-800 bg-transparent' : 'offer-meta-input text-slate-700 bg-transparent'}`}/>); })()}</div></div>); };
             
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
@@ -2144,7 +2187,7 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
     // Offscreen-Iframe
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
-    iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1123px;height:2600px;opacity:0;pointer-events:none;';
+    iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1123px;height:5000px;opacity:0;pointer-events:none;';
     document.body.appendChild(iframe);
 
     const doc = iframe.contentDocument;
@@ -2162,7 +2205,7 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
         .join('\n\n');
     const stylesPrintAll = styles.replace(/@media\s+print/g, '@media all');
     const styleEl = doc.createElement('style');
-    styleEl.textContent = stylesPrintAll + "\n\n" + 'html,body{background:#fff;margin:0;padding:0;width:1123px;max-width:1123px;overflow:visible;}' + "\n" + '.pdf-share-mode .print-page-header{display:flex !important;} .pdf-share-mode .situation-view-wrapper{padding-left:40px !important;} .pdf-share-mode body{background:#ffffff !important;}' ;
+    styleEl.textContent = stylesPrintAll + "\n\n" + 'html,body{background:#fff;margin:0;padding:0;width:1123px;max-width:1123px;overflow:visible;height:auto;}html{height:auto;}' + "\n" + '.pdf-share-mode .print-page-header{display:flex !important;} .pdf-share-mode .situation-view-wrapper{padding-left:40px !important;} .pdf-share-mode body{background:#ffffff !important;}' ;
     doc.head.appendChild(styleEl);
 
     const base = doc.createElement('base');
@@ -2198,6 +2241,8 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
     // im Querformat angelegt werden (nicht nur der Inhalt skaliert).
     const A4_LANDSCAPE_PT = [841.89, 595.28]; // 297x210mm in points
 
+
+    const SHARE_SCROLL_H = Math.max(doc.documentElement?.scrollHeight || 0, doc.body?.scrollHeight || 0, container?.scrollHeight || 0) + 40;
     const opt = {
         margin:       [5,5,5,5],
         filename:     `Angebot_${new Date().toISOString().slice(0,10)}.pdf`,
@@ -2205,9 +2250,7 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
         html2canvas:  {
             scale: 2,
             windowWidth: 1123,
-            windowHeight: 794,
-            width: 1123,
-            height: 794,
+            windowHeight: SHARE_SCROLL_H,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
