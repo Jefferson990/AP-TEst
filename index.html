@@ -672,22 +672,53 @@ html, body {
             };
             // 1) Ink / strokes
             if (drawnStrokes) {
-                for (const [key, strokes] of Object.entries(drawnStrokes)) {
-                    const count = Array.isArray(strokes) ? strokes.length : 0;
-                    // nur relevante Felder loggen (Situation/Offer/Cost/Signature/Skip)
-                    const allowed = (
-                        key.startsWith('sit_') ||
-                        key.startsWith('offer') ||
-                        key.startsWith('cost_') ||
-                        key.startsWith('agent_') ||
-                        key.startsWith('date_') ||
-                        key.startsWith('signature') ||
-                        key.startsWith('skip_')
-                    );
-                    if (!allowed) continue;
-                    ensure(key).strokes = count;
-                    if (count > 0) ensure(key).used = true; // Stift: mind. 1 Stroke
-                }
+// Helper: sum of distances between consecutive points (canvas CSS px)
+const calcInkLengthPx = (strokesArr) => {
+    if (!Array.isArray(strokesArr)) return 0;
+    let len = 0;
+    for (const s of strokesArr) {
+        const pts = (s && Array.isArray(s.points)) ? s.points : [];
+        for (let i = 1; i < pts.length; i++) {
+            const p0 = pts[i-1] || {};
+            const p1 = pts[i] || {};
+            const dx = (p1.x ?? 0) - (p0.x ?? 0);
+            const dy = (p1.y ?? 0) - (p0.y ?? 0);
+            // Ignore NaN
+            if (!Number.isFinite(dx) || !Number.isFinite(dy)) continue;
+            len += Math.hypot(dx, dy);
+        }
+    }
+    return len;
+};
+
+for (const [key, strokes] of Object.entries(drawnStrokes)) {
+    const count = Array.isArray(strokes) ? strokes.length : 0;
+    // nur relevante Felder loggen (Situation/Offer/Cost/Signature/Skip)
+    const allowed = (
+        key.startsWith('sit_') ||
+        key.startsWith('offer') ||
+        key.startsWith('cost_') ||
+        key.startsWith('agent_') ||
+        key.startsWith('date_') ||
+        key.startsWith('signature') ||
+        key.startsWith('skip_') ||
+        key.startsWith('skip') || // safety
+        key === 'skip_reason'       // small input canvas
+    );
+    if (!allowed) continue;
+
+    ensure(key).strokes = count;
+
+    // ✅ Anti-Cheat (Pen): counts as "used" only if strokes ≥ 2 AND ink length ≥ 80px.
+    // Signature stays relaxed (any stroke counts), otherwise customers get stuck.
+    const inkLen = calcInkLengthPx(strokes);
+    if (key.startsWith('signature')) {
+        if (count > 0) ensure(key).used = true;
+    } else {
+        if (count >= 2 && inkLen >= 80) ensure(key).used = true;
+    }
+}
+
             }
 
             // 2) Digital text -> counts as "used" when >= 5 Zeichen
@@ -1097,7 +1128,16 @@ html, body {
         };
 
         const StatsModal = ({ isOpen, onClose }) => {
-            const [range, setRange] = useState('7'); // '1' | '7' | '31' | 'all'
+const resolveUserName = (raw) => {
+                const s = (raw == null) ? '' : String(raw).trim();
+                if (!s) return 'Elif Icik';
+                const low = s.toLowerCase();
+                if (s === 'E.I' || low === 'e.i') return 'Elif Icik';
+                if (s === 'Max Mustermann' || low === 'unknown') return 'Elif Icik';
+                return s;
+            };
+
+                        const [range, setRange] = useState('7'); // '1' | '7' | '31' | 'all'
             const rows = useMemo(() => loadAnalyticsRows().slice().reverse(), [isOpen]);
 
             const filtered = useMemo(() => {
@@ -1115,7 +1155,7 @@ html, body {
             const summary = useMemo(() => {
                 const agg = {}; // user -> { total, angebot, abschluss, strokes, canv: {key:{usedCount, strokes}} }
                 filtered.forEach(r => {
-                    const u = r.user || 'unknown';
+                    const u = resolveUserName(r.user);
                     if (!agg[u]) agg[u] = { total: 0, angebot: 0, abschluss: 0, strokes: 0, explainSum: 0, scoreSum: 0, canv: {} };
                     agg[u].total += 1;
                     if (r.result === 'Angebot') agg[u].angebot += 1;
@@ -1159,6 +1199,27 @@ html, body {
                 return arr;
             }, [filtered]);
 
+            // Labels für Statistik (UI)
+            const prettyUser = (u) => {
+                const s = String(u || '').trim();
+                if (s === 'E.I' || s === 'EI' || s.toLowerCase() === 'e.i') return 'Elif Icik';
+                return s || '—';
+            };
+
+            const prettyField = (k) => {
+                if (!k) return '';
+                if (k === 'offer1') return '1. Hardware, Anbieter & Nutzung';
+                if (k === 'offer2') return '2. Haushalt und weitere Produkte';
+                if (k === 'offer3') return '3. Fernsehen & Wi‑Fi';
+                if (k === 'skip_reason') return 'Überspringen';
+                if (k.startsWith('sit_')) return k.replace('sit_','S:');
+                if (k.startsWith('offer')) return k.replace('offer','O:');
+                if (k.startsWith('cost_')) return k.replace('cost_','K:');
+                if (k === 'agent_name') return 'Agent';
+                if (k === 'date_field') return 'Datum';
+                return k;
+            };
+
             const trend6m = useMemo(() => {
                 const now = new Date();
                 const months = [];
@@ -1166,10 +1227,11 @@ html, body {
                     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
                     const label = d.toLocaleString('de-DE', { month: 'short', year: '2-digit' });
-                    months.push({ key, label, total: 0, explainSum: 0, scoreSum: 0, strokesSum: 0 });
+                    months.push({ key, label, total: 0, strokesSum: 0 });
                 }
                 const byKey = Object.fromEntries(months.map(m => [m.key, m]));
-                (rows || []).forEach(r => {
+
+                (filtered || []).forEach(r => {
                     const t = Date.parse(r.ts);
                     if (!Number.isFinite(t)) return;
                     const d = new Date(t);
@@ -1178,30 +1240,20 @@ html, body {
                     if (!bucket) return;
 
                     const cs = r.canvasStats || {};
-                    const entries = Object.entries(cs).filter(([k]) => k !== 'skip_reason');
-                    let used = 0;
                     let strokes = 0;
-                    entries.forEach(([_, v]) => {
-                        if (v && v.used) used += 1;
+                    Object.values(cs).forEach(v => {
                         if (v && Number.isFinite(v.strokes)) strokes += v.strokes;
                     });
-                    const explain = entries.length ? (used / entries.length) : 0;
-                    const visualFactor = Math.min(1, strokes / 8);
-                    const score = (explain * 100 * 0.7) + (visualFactor * 100 * 0.3);
 
                     bucket.total += 1;
-                    bucket.explainSum += explain;
-                    bucket.scoreSum += score;
                     bucket.strokesSum += strokes;
                 });
 
                 return months.map(m => ({
                     ...m,
-                    explainPct: m.total ? Math.round((m.explainSum / m.total) * 100) : 0,
-                    scoreAvg: m.total ? Math.round(m.scoreSum / m.total) : 0,
                     strokesAvg: m.total ? (m.strokesSum / m.total).toFixed(1) : '0.0',
                 }));
-            }, [rows]);
+            }, [filtered]);
 
 
             const handleClear = () => {
@@ -1280,9 +1332,8 @@ html, body {
                                     <thead className="bg-slate-50">
                                         <tr className="text-left">
                                             <th className="p-3 font-black text-slate-700">Monat</th>
-                                            <th className="p-3 font-black text-slate-700">Fälle</th>
-                                            <th className="p-3 font-black text-slate-700"><span title="Anteil erklärter Felder (Text ≥ 5 Zeichen oder Stift ≥ 1) pro Vorgang. Alle Felder gleich gewichtet.">Erklärungs-Quote</span></th>
-                                            <th className="p-3 font-black text-slate-700"><span title="Score 0–100: 70% Erklärungs-Quote + 30% Visual (Stift-Einsatz, gedeckelt).">Score</span></th>
+                                            <th className="p-3 font-black text-slate-700">Vorgänge</th>
+
                                             <th className="p-3 font-black text-slate-700"><span title="Ø Stift-Eingaben (Strokes) pro Vorgang. Tastatur zählt nicht.">Ø Stift-Eingaben</span></th>
                                         </tr>
                                     </thead>
@@ -1291,8 +1342,7 @@ html, body {
                                             <tr key={m.key} className="border-t border-slate-200">
                                                 <td className="p-3 font-bold text-slate-800">{m.label}</td>
                                                 <td className="p-3 text-slate-700">{m.total}</td>
-                                                <td className="p-3 text-slate-700">{m.explainPct}%</td>
-                                                <td className="p-3 text-slate-700">{m.scoreAvg}</td>
+
                                                 <td className="p-3 text-slate-700">{m.strokesAvg}</td>
                                             </tr>
                                         ))}
@@ -1305,12 +1355,12 @@ html, body {
                                     <thead className="bg-slate-50">
                                         <tr className="text-left">
                                             <th className="p-3 font-black text-slate-700">Mitarbeiter</th>
-                                            <th className="p-3 font-black text-slate-700">Fälle</th>
+                                            <th className="p-3 font-black text-slate-700">Vorgänge</th>
                                             <th className="p-3 font-black text-slate-700">Angebot</th>
                                             <th className="p-3 font-black text-slate-700">Abschluss</th>
-                                            <th className="p-3 font-black text-slate-700"><span title="Anteil erklärter Felder (Text ≥ 5 Zeichen oder Stift ≥ 1) pro Vorgang. Alle Felder gleich gewichtet.">Erklärungs-Quote</span></th><th className="p-3 font-black text-slate-700"><span title="Score 0–100: 70% Erklärungs-Quote + 30% Visual (Stift-Einsatz, gedeckelt).">Score</span></th><th className="p-3 font-black text-slate-700"><span title="Ø Stift-Eingaben (Strokes) pro Vorgang. Tastatur zählt nicht.">Ø Stift-Eingaben</span></th>
+                                            <th className="p-3 font-black text-slate-700"><span title="Ø Stift-Eingaben (Strokes) pro Vorgang. Tastatur zählt nicht.">Ø Stift-Eingaben</span></th>
                                             {allCanvasKeys.map(k => (
-                                                <th key={k} className="p-3 font-black text-slate-700">{k.replace('sit_','S:').replace('offer','O:')}</th>
+                                                <th key={k} className="p-3 font-black text-slate-700">{prettyField(k)}</th>
                                             ))}
                                             
                                         </tr>
@@ -1324,11 +1374,11 @@ html, body {
                                             const scoreAvg = Math.round((s.scoreSum / Math.max(1, s.total)));
                                             return (
                                                 <tr key={user} className="border-t border-slate-200">
-                                                    <td className="p-3 font-bold text-slate-800">{user}</td>
+                                                    <td className="p-3 font-bold text-slate-800">{prettyUser(user)}</td>
                                                     <td className="p-3 text-slate-700">{s.total}</td>
                                                     <td className="p-3 text-slate-700">{s.angebot}</td>
                                                     <td className="p-3 text-slate-700">{s.abschluss}</td>
-                                                    <td className="p-3 text-slate-700">{explainPct}%</td><td className="p-3 text-slate-700">{scoreAvg}</td><td className="p-3 text-slate-700">{avgStrokes}</td>
+                                                    <td className="p-3 text-slate-700">{avgStrokes}</td>
                                                     {allCanvasKeys.map(k => {
                                                         const c = s.canv[k] || { usedCount: 0, strokes: 0 };
                                                         const pct = Math.round((c.usedCount / Math.max(1, s.total)) * 100);
@@ -1395,7 +1445,81 @@ html, body {
         return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{image && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={handleImageReset} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}{image && (<button onClick={onClearImage} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eingefügtes Bild entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button data-print-keep="1" onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button data-print-keep="1" onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div></div><div className="canvas-lines"></div>{image && (<div className="absolute inset-0 z-20" onPointerDown={isPenMode ? handleInteractionStart : undefined} onPointerMove={isPenMode ? handleInteractionMove : undefined} onPointerUp={isPenMode ? handleInteractionEnd : undefined} onPointerCancel={isPenMode ? handleInteractionEnd : undefined} onPointerLeave={isPenMode ? handleInteractionEnd : undefined} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: isPenMode ? (interactionStateRef.current.mode === 'drag' ? 'grabbing' : interactionStateRef.current.mode === 'scale' ? 'crosshair' : 'grab') : 'default', pointerEvents: isPenMode ? 'auto' : 'none', touchAction: 'none' }}><img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 0.7 }}/></div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
         
         // --- SMALL INPUT CANVAS (Patched with drawing-canvas class) ---
-        const SmallInputCanvas = ({ inputMode, canvasRef, inputKey, inputValue, inputType = 'text', onChange, placeholder, drawnStrokes, setDrawnStrokes, readOnly = false, startDrawing, draw, stopDrawing }) => { const isPen = inputMode === 'pen'; useEffect(() => { const canvas = canvasRef.current; if (!canvas) return; if (isPen) { redrawCanvas(canvas, drawnStrokes[inputKey], 1, inputKey); } }, [isPen, drawnStrokes, inputKey]); const clearSmallCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, [inputKey]: [] })); }; return (<div className="small-canvas-wrapper h-full relative flex items-center border-none">{isPen ? (<><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, inputKey)} onPointerMove={(e) => draw(e, canvasRef, inputKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ pointerEvents: 'auto', touchAction: 'none' }}/>{drawnStrokes[inputKey]?.length > 0 && (<button onClick={clearSmallCanvas} className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded text-slate-400 z-20" title="Löschen"><Icon d={ICONS.Trash} size={14}/></button>)}</>) : (<input type={inputType} value={inputValue} onChange={onChange} readOnly={readOnly} placeholder={placeholder} className="w-full h-full p-2 text-sm font-medium text-slate-700 bg-transparent focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none" style={{ fontSize: '15px', paddingLeft: '8px', opacity: isPen ? 0.5 : 1, pointerEvents: isPen ? 'none' : 'auto' }}/>)}</div>); };
+        
+        // --- SMALL INPUT CANVAS (shows background value even in Pen mode) ---
+        const SmallInputCanvas = ({
+            inputMode, canvasRef, inputKey,
+            inputValue = '', inputType = 'text', onChange, placeholder,
+            drawnStrokes, setDrawnStrokes, readOnly = false,
+            startDrawing, draw, stopDrawing
+        }) => {
+            const isPen = inputMode === 'pen';
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                if (isPen) {
+                    redrawCanvas(canvas, drawnStrokes[inputKey], 1, inputKey);
+                }
+            }, [isPen, drawnStrokes, inputKey]);
+
+            const clearSmallCanvas = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+                setDrawnStrokes(prev => ({ ...prev, [inputKey]: [] }));
+            };
+
+            return (
+                <div className="small-canvas-wrapper h-full relative flex items-center border-none">
+                    {/* Background value (so initials like "E.I" are visible even when Pen overlay is active) */}
+                    {isPen && (
+                        <div
+                            className="absolute inset-0 flex items-center pl-2 pr-8 text-[15px] font-semibold text-slate-700 select-none"
+                            style={{ pointerEvents: 'none', opacity: 0.9 }}
+                        >
+                            {String(inputValue || '').trim()}
+                        </div>
+                    )}
+
+                    {isPen ? (
+                        <>
+                            <canvas
+                                ref={canvasRef}
+                                onPointerDown={(e) => startDrawing(e, canvasRef, inputKey)}
+                                onPointerMove={(e) => draw(e, canvasRef, inputKey)}
+                                onPointerUp={(e) => stopDrawing(e, canvasRef)}
+                                onPointerLeave={(e) => stopDrawing(e, canvasRef)}
+                                className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas"
+                                style={{ pointerEvents: 'auto', touchAction: 'none' }}
+                            />
+                            {drawnStrokes[inputKey]?.length > 0 && (
+                                <button
+                                    onClick={clearSmallCanvas}
+                                    className="absolute top-1/2 right-2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded text-slate-400 z-20"
+                                    title="Löschen"
+                                >
+                                    <Icon d={ICONS.Trash} size={14}/>
+                                </button>
+                            )}
+                        </>
+                    ) : (
+                        <input
+                            type={inputType}
+                            value={inputValue}
+                            onChange={onChange}
+                            readOnly={readOnly}
+                            placeholder={placeholder}
+                            className="w-full h-full p-2 text-sm font-medium text-slate-700 bg-transparent focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none"
+                            style={{ fontSize: '15px', paddingLeft: '8px' }}
+                        />
+                    )}
+                </div>
+            );
+        };
+
 
         // --- MAIN APP ---
         function App() {
@@ -1482,7 +1606,7 @@ const toolRef = useRef('pen');
             const [textSize, setTextSize] = useState('medium'); 
             const [textStyle, setTextStyle] = useState({ bold: false, italic: false });
             const [textData, setTextData] = useState({ 
-                AgentName: 'Max Mustermann', 
+                AgentName: 'E.I', 
                 DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), 
                 offer1: '', 
                 offer2: '', 
@@ -1603,7 +1727,13 @@ const toolRef = useRef('pen');
                 try {
                     appendAnalyticsRow({
                         ts: new Date().toISOString(),
-                        user: (textData && textData.AgentName) ? textData.AgentName : 'unknown',
+                        user: (() => {
+                            const raw = (textData && textData.AgentName) ? String(textData.AgentName).trim() : '';
+                            if (!raw) return 'Elif Icik';
+                            if (raw === 'E.I' || raw.toLowerCase() === 'e.i') return 'Elif Icik';
+                            if (raw === 'Max Mustermann' || raw.toLowerCase() === 'unknown') return 'Elif Icik';
+                            return raw;
+                        })(),
                         shop: 'HeTec',
                         result: (type === 'deal') ? 'Abschluss' : 'Angebot',
                         canvasStats: buildCanvasStatsFromDrawnStrokes(drawnStrokes, textData, { skipReason })
@@ -1626,7 +1756,7 @@ const toolRef = useRef('pen');
             
             const handleSkipToOffer = (reasonData) => { setSkipReason(reasonData); setShowSkipReasonModal(false); setView('offer'); triggerToast(`Situation übersprungen. Grund: ${reasonData.substring(0, 30)}...`); };
 
-            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [] }); setTextData({ AgentName: 'Max Mustermann', DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
+            const handleClearAll = () => { setDrawnStrokes({ main: [], email: [], provider: [], notes: [], skip_reason: [], sit_Kundenname: [], sit_Rufnummer: [], sit_Anbieter: [], sit_Hardware: [], sit_Nutzung: [], sit_Haushalt: [], sit_WeitereProdukte: [], sit_Fernsehen: [], sit_WiFi: [], sit_Gesamtkosten: [], offer1: [], offer2: [], offer3: [], cost_einmalig: [], cost_monatlich1: [], cost_monatlich2: [], agent_name: [], date_field: [] }); setTextData({ AgentName: 'E.I', DateValue: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }), offer1: '', offer2: '', offer3: '', Kundenname: '', Rufnummer: '', Anbieter: '', Hardware: '', Nutzung: '', Haushalt: '', 'Weitere Produkte': '', Fernsehen: '', WiFi: '', Gesamtkosten: '' }); setCustomerType(""); setSegment(""); setProviderSelect(""); setCustomProvider(""); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setEmailText(''); setSkipReason(''); setSkipReasonMode('keyboard'); setCostState({ mobile: '', landline: '', tv: '' }); setOfferData(initialOfferData); setCanvasStatus({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' }); setCustomerSignature(null); setCanvasImages({ offer1: null, offer2: null, offer3: null }); setImageTransform({ offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer2: { x: 0, y: 0, scale: 1.0, rotation: 0 }, offer3: { x: 0, y: 0, scale: 1.0, rotation: 0 } }); setRedrawCounter(r => r + 1); triggerToast('Alle Daten gelöscht und Ansicht zurückgesetzt.'); };
 
             const Toast = ({ message }) => { if (!message) return null; return (<div className="print-hide-toast fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg border border-slate-700 animate-in fade-in duration-300"><div className="flex items-center gap-2"><Icon d={ICONS.Clipboard} size={16} className="text-green-400"/><span className="text-sm font-medium">{message}</span></div></div>); };
 
@@ -1967,7 +2097,7 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
             const toggleTech = (val) => setShowTechModal(val);
             const penTools = [{ id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' }, { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' }, { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' }];
             const handleOfferCostChange = (key, value) => { const cleanValue = value.replace(',', '.'); let val = parseFloat(cleanValue); const rawKey = `${key}Raw`; setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val })); };
-            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? '0'; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (<input type={type} value={rawValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full p-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'text-xl font-black text-slate-800 bg-transparent' : 'text-slate-700 bg-transparent'}`}/>)}</div></div>); };
+            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? '0'; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (<input type={type} value={rawValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full p-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'text-xl font-black text-slate-800 bg-transparent' : 'text-slate-700 bg-transparent'}`}/>)}</div></div>); };
             
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
@@ -2040,7 +2170,7 @@ if (!sourceOffer || !sourceSituation) {
         // --- Offscreen-Iframe erstellen (damit Print-CSS "aktiv" wird, ohne UI zu zerstören) ---
         const iframe = document.createElement('iframe');
         iframe.setAttribute('aria-hidden', 'true');
-        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1600px;height:1200px;opacity:0;pointer-events:none;';
+        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1123px;height:2600px;opacity:0;pointer-events:none;';
         document.body.appendChild(iframe);
 
         const doc = iframe.contentDocument;
@@ -2058,7 +2188,7 @@ if (!sourceOffer || !sourceSituation) {
         const stylesPrintAll = styles.replace(/@media\s+print/g, '@media all');
 
         const styleEl = doc.createElement('style');
-        styleEl.textContent = stylesPrintAll + '\n\n' + 'body{background:#fff;margin:0;padding:0;}';
+        styleEl.textContent = stylesPrintAll + "\n\n" + 'html,body{background:#fff;margin:0;padding:0;width:1123px;max-width:1123px;overflow:visible;}';
         doc.head.appendChild(styleEl);
 
         // 3) Basis <base> setzen, damit data-uri / relative URLs sicher sind
@@ -2068,7 +2198,7 @@ if (!sourceOffer || !sourceSituation) {
 
         // 4) Inhalt klonen (Seite 1 + Seite 2) und einfügen – mit hartem Seitenumbruch dazwischen
 const container = doc.createElement('div');
-container.style.cssText = 'background:#fff; width:100%; height:auto; overflow:visible;';
+container.style.cssText = 'background:#fff; width:1123px; box-sizing:border-box; padding:18.9px 18.9px 18.9px 38.9px; height:auto; overflow:visible;';
 doc.body.appendChild(container);
 
 const cloneSituation = sourceSituation.cloneNode(true);
@@ -2098,10 +2228,10 @@ container.appendChild(cloneOffer);
         // --- PDF als Blob erzeugen ---
         const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
         const opt = {
-            margin:       0,
+            margin:       [5,5,5,5],
             filename,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1600 },
+            html2canvas:  {scale: 2, windowWidth: 1123, windowHeight: 794, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0},
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
             pagebreak:    { mode: ['css','legacy'] }
         };
