@@ -2029,17 +2029,18 @@ const handlePDFShare = async () => {
         // Print-Header wie beim echten Druck einfügen (wird nachher wieder entfernt)
         try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){ console.warn(e); }
 
-        const source = document.querySelector('.print-offer-view');
-        if (!source) {
-            hideOverlay();
-            triggerToast('Angebots-Ansicht nicht gefunden.');
-            return;
-        }
+        const sourceSituation = document.querySelector('.situation-view-wrapper');
+const sourceOffer = document.querySelector('.print-offer-view');
+if (!sourceOffer || !sourceSituation) {
+    hideOverlay();
+    triggerToast('Druck-Ansichten nicht gefunden (Seite 1/2).');
+    return;
+}
 
         // --- Offscreen-Iframe erstellen (damit Print-CSS "aktiv" wird, ohne UI zu zerstören) ---
         const iframe = document.createElement('iframe');
         iframe.setAttribute('aria-hidden', 'true');
-        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1200px;height:1600px;opacity:0;pointer-events:none;';
+        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1600px;height:1200px;opacity:0;pointer-events:none;';
         document.body.appendChild(iframe);
 
         const doc = iframe.contentDocument;
@@ -2065,11 +2066,29 @@ const handlePDFShare = async () => {
         base.href = window.location.href;
         doc.head.appendChild(base);
 
-        // 4) Inhalt klonen (nur Angebot) und einfügen
-        const clone = source.cloneNode(true);
-        // im Clone ggf. Overlay/Toast etc. sicher raus
-        clone.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-        doc.body.appendChild(clone);
+        // 4) Inhalt klonen (Seite 1 + Seite 2) und einfügen – mit hartem Seitenumbruch dazwischen
+const container = doc.createElement('div');
+container.style.cssText = 'background:#fff; width:100%; height:auto; overflow:visible;';
+doc.body.appendChild(container);
+
+const cloneSituation = sourceSituation.cloneNode(true);
+// "hidden" / display-None entfernen, damit Seite 1 im PDF sichtbar ist
+try { cloneSituation.classList.remove('hidden'); } catch(e){}
+cloneSituation.style.display = 'flex';
+cloneSituation.style.height = 'auto';
+cloneSituation.style.overflow = 'visible';
+// Overlay/Toast etc. sicher raus
+cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+container.appendChild(cloneSituation);
+
+// Expliziter Seitenumbruch: Seite 1 -> Seite 2
+const pageBreak = doc.createElement('div');
+pageBreak.style.cssText = 'break-after:page; page-break-after:always; height:0;';
+container.appendChild(pageBreak);
+
+const cloneOffer = sourceOffer.cloneNode(true);
+cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+container.appendChild(cloneOffer);
 
         // 5) Layout settle
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -2082,8 +2101,8 @@ const handlePDFShare = async () => {
             margin:       0,
             filename,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1200 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            html2canvas:  { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1600 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
             pagebreak:    { mode: ['css','legacy'] }
         };
 
