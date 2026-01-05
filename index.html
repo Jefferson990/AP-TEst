@@ -15,11 +15,7 @@
     <!-- 3. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- 4. PDF Share (DOM -> PDF -> Web Share API) -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    
-    <style>
+<style>
         /* Global Visual Boost */
         html {
             filter: saturate(1.4) contrast(1.05);
@@ -1119,11 +1115,25 @@ html, body {
                 const agg = {}; // user -> { total, angebot, abschluss, strokes, canv: {key:{usedCount, strokes}} }
                 filtered.forEach(r => {
                     const u = r.user || 'unknown';
-                    if (!agg[u]) agg[u] = { total: 0, angebot: 0, abschluss: 0, strokes: 0, canv: {} };
+                    if (!agg[u]) agg[u] = { total: 0, angebot: 0, abschluss: 0, strokes: 0, explainSum: 0, scoreSum: 0, canv: {} };
                     agg[u].total += 1;
                     if (r.result === 'Angebot') agg[u].angebot += 1;
                     if (r.result === 'Abschluss') agg[u].abschluss += 1;
                     const cs = r.canvasStats || {};
+                    // Fair KPI: Erklärung (Text >=5 ODER Stift >=1) ist bereits in canvasStats.used abgebildet
+                    const csEntries = Object.entries(cs).filter(([k]) => k !== 'skip_reason');
+                    let rowUsed = 0;
+                    let rowStrokes = 0;
+                    csEntries.forEach(([_, v]) => {
+                        if (v && v.used) rowUsed += 1;
+                        if (v && Number.isFinite(v.strokes)) rowStrokes += v.strokes;
+                    });
+                    const rowExplain = csEntries.length ? (rowUsed / csEntries.length) : 0; // 0..1
+                    const visualFactor = Math.min(1, rowStrokes / 8); // cap: 8 strokes => 100% Visual
+                    const rowScore = (rowExplain * 100 * 0.7) + (visualFactor * 100 * 0.3); // 0..100
+                    agg[u].explainSum += rowExplain;
+                    agg[u].scoreSum += rowScore;
+
                     for (const [k, v] of Object.entries(cs)) {
                         if (!agg[u].canv[k]) agg[u].canv[k] = { usedCount: 0, strokes: 0 };
                         if (v.used) agg[u].canv[k].usedCount += 1;
@@ -1147,6 +1157,51 @@ html, body {
                 });
                 return arr;
             }, [filtered]);
+
+            const trend6m = useMemo(() => {
+                const now = new Date();
+                const months = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    const label = d.toLocaleString('de-DE', { month: 'short', year: '2-digit' });
+                    months.push({ key, label, total: 0, explainSum: 0, scoreSum: 0, strokesSum: 0 });
+                }
+                const byKey = Object.fromEntries(months.map(m => [m.key, m]));
+                (rows || []).forEach(r => {
+                    const t = Date.parse(r.ts);
+                    if (!Number.isFinite(t)) return;
+                    const d = new Date(t);
+                    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    const bucket = byKey[key];
+                    if (!bucket) return;
+
+                    const cs = r.canvasStats || {};
+                    const entries = Object.entries(cs).filter(([k]) => k !== 'skip_reason');
+                    let used = 0;
+                    let strokes = 0;
+                    entries.forEach(([_, v]) => {
+                        if (v && v.used) used += 1;
+                        if (v && Number.isFinite(v.strokes)) strokes += v.strokes;
+                    });
+                    const explain = entries.length ? (used / entries.length) : 0;
+                    const visualFactor = Math.min(1, strokes / 8);
+                    const score = (explain * 100 * 0.7) + (visualFactor * 100 * 0.3);
+
+                    bucket.total += 1;
+                    bucket.explainSum += explain;
+                    bucket.scoreSum += score;
+                    bucket.strokesSum += strokes;
+                });
+
+                return months.map(m => ({
+                    ...m,
+                    explainPct: m.total ? Math.round((m.explainSum / m.total) * 100) : 0,
+                    scoreAvg: m.total ? Math.round(m.scoreSum / m.total) : 0,
+                    strokesAvg: m.total ? (m.strokesSum / m.total).toFixed(1) : '0.0',
+                }));
+            }, [rows]);
+
 
             const handleClear = () => {
                 if (!confirm('Analytics wirklich löschen?')) return;
@@ -1216,7 +1271,34 @@ html, body {
                                 </div>
                             </div>
 
-                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pro Mitarbeiter</div>
+                            
+
+                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4">Trend (letzte 6 Monate)</div>
+                            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                                <table className="min-w-max w-max text-sm">
+                                    <thead className="bg-slate-50">
+                                        <tr className="text-left">
+                                            <th className="p-3 font-black text-slate-700">Monat</th>
+                                            <th className="p-3 font-black text-slate-700">Fälle</th>
+                                            <th className="p-3 font-black text-slate-700"><span title="Anteil erklärter Felder (Text ≥ 5 Zeichen oder Stift ≥ 1) pro Vorgang. Alle Felder gleich gewichtet.">Erklärungs-Quote</span></th>
+                                            <th className="p-3 font-black text-slate-700"><span title="Score 0–100: 70% Erklärungs-Quote + 30% Visual (Stift-Einsatz, gedeckelt).">Score</span></th>
+                                            <th className="p-3 font-black text-slate-700"><span title="Ø Stift-Eingaben (Strokes) pro Vorgang. Tastatur zählt nicht.">Ø Stift-Eingaben</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {trend6m.map(m => (
+                                            <tr key={m.key} className="border-t border-slate-200">
+                                                <td className="p-3 font-bold text-slate-800">{m.label}</td>
+                                                <td className="p-3 text-slate-700">{m.total}</td>
+                                                <td className="p-3 text-slate-700">{m.explainPct}%</td>
+                                                <td className="p-3 text-slate-700">{m.scoreAvg}</td>
+                                                <td className="p-3 text-slate-700">{m.strokesAvg}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+<div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pro Mitarbeiter</div>
                             <div className="overflow-x-auto border border-slate-200 rounded-2xl">
                                 <table className="min-w-max w-max text-sm">
                                     <thead className="bg-slate-50">
@@ -1225,7 +1307,7 @@ html, body {
                                             <th className="p-3 font-black text-slate-700">Fälle</th>
                                             <th className="p-3 font-black text-slate-700">Angebot</th>
                                             <th className="p-3 font-black text-slate-700">Abschluss</th>
-                                            <th className="p-3 font-black text-slate-700">Ø Strokes</th>
+                                            <th className="p-3 font-black text-slate-700"><span title="Anteil erklärter Felder (Text ≥ 5 Zeichen oder Stift ≥ 1) pro Vorgang. Alle Felder gleich gewichtet.">Erklärungs-Quote</span></th><th className="p-3 font-black text-slate-700"><span title="Score 0–100: 70% Erklärungs-Quote + 30% Visual (Stift-Einsatz, gedeckelt).">Score</span></th><th className="p-3 font-black text-slate-700"><span title="Ø Stift-Eingaben (Strokes) pro Vorgang. Tastatur zählt nicht.">Ø Stift-Eingaben</span></th>
                                             {allCanvasKeys.map(k => (
                                                 <th key={k} className="p-3 font-black text-slate-700">{k.replace('sit_','S:').replace('offer','O:')}</th>
                                             ))}
@@ -1236,14 +1318,16 @@ html, body {
                                         {Object.entries(summary).length === 0 ? (
                                             <tr><td className="p-4 text-slate-500" colSpan={10}>Noch keine Daten. Tipp: Ein Vorgang wird automatisch geloggt, sobald du „Angebot drucken“ oder „Abschluss“ auswählst.</td></tr>
                                         ) : Object.entries(summary).map(([user, s]) => {
-                                            const avg = (s.strokes / Math.max(1, s.total)).toFixed(1);
+                                            const avgStrokes = (s.strokes / Math.max(1, s.total)).toFixed(1);
+                                            const explainPct = Math.round((s.explainSum / Math.max(1, s.total)) * 100);
+                                            const scoreAvg = Math.round((s.scoreSum / Math.max(1, s.total)));
                                             return (
                                                 <tr key={user} className="border-t border-slate-200">
                                                     <td className="p-3 font-bold text-slate-800">{user}</td>
                                                     <td className="p-3 text-slate-700">{s.total}</td>
                                                     <td className="p-3 text-slate-700">{s.angebot}</td>
                                                     <td className="p-3 text-slate-700">{s.abschluss}</td>
-                                                    <td className="p-3 text-slate-700">{avg}</td>
+                                                    <td className="p-3 text-slate-700">{explainPct}%</td><td className="p-3 text-slate-700">{scoreAvg}</td><td className="p-3 text-slate-700">{avgStrokes}</td>
                                                     {allCanvasKeys.map(k => {
                                                         const c = s.canv[k] || { usedCount: 0, strokes: 0 };
                                                         const pct = Math.round((c.usedCount / Math.max(1, s.total)) * 100);
@@ -1319,6 +1403,7 @@ html, body {
             const [questionIndex, setQuestionIndex] = useState(0); 
             const [questionsData, setQuestionsData] = useState(INITIAL_QUESTIONS_DATA);
             
+            const isAndroidDevice = /Android/i.test(navigator.userAgent || '');
             // Drawing State
             const [tool, setTool] = useState('pen');
             const [color, setColor] = useState('#0044ff'); 
@@ -1699,116 +1784,21 @@ html, body {
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
 
-            // --- PDF SHARE: DOM -> PDF (html2canvas + jsPDF) -> Web Share API (File) ---
-            // Funktionsname: handlePDFShare
-            // Workflow: wandelt die beiden Hauptbereiche (Analyse/Situation & Angebot) in Bilder um,
-            // baut daraus ein 2-seitiges PDF und teilt es via navigator.share als echtes File.
-            const handlePDFShare = async () => {
-                try {
-                    const customerName = (getDisplayText('Kundenname') || 'Kunde').toString().trim() || 'Kunde';
-                    const totalCost = (offerData?.monatlich1Raw || '0').toString().trim() || '0';
-                    const fileNameSafe = customerName.replace(/[^a-z0-9äöüß _-]/gi, '').replace(/\s+/g, '_');
-                    const filename = `Angebot_${fileNameSafe}_${new Date().toISOString().slice(0,10)}.pdf`;
+// --- ANDROID SHARE (PRINT FLOW) ---
+// Kein Screenshot/Canvas-PDF mehr. Stattdessen startet der Button den System-Print,
+// damit @media print als Master-Layout genutzt wird (echtes PDF über „Als PDF speichern“).
+const handlePDFShare = () => {
+    if (!isAndroidDevice) {
+        triggerToast('Teilen ist nur auf Android verfügbar.');
+        return;
+    }
+    triggerToast('PDF erstellen: Im Dialog „Als PDF speichern“ wählen – danach direkt per WhatsApp/Outlook teilen.');
+    // kleine Verzögerung, damit Toast/Dropdowns schließen können
+    setTimeout(() => {
+        try { window.print(); } catch (e) { console.error(e); }
+    }, 200);
+};
 
-                    // Guard: Libraries loaded?
-                    if (!window.html2canvas || !window.jspdf?.jsPDF) {
-                        triggerToast('PDF-Share: Bibliotheken fehlen (html2canvas/jsPDF).');
-                        return;
-                    }
-
-                    const waitForPaint = () => new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
-                    const prevView = view;
-
-                    const captureForView = async (targetView, selector) => {
-                        if (typeof setView === 'function') setView(targetView);
-                        await waitForPaint();
-                        // small delay for fonts/layout
-                        await new Promise(r => setTimeout(r, 50));
-                        const el = document.querySelector(selector);
-                        if (!el) throw new Error(`Element not found for capture: ${selector}`);
-                        // Ensure no toasts overlap
-                        const toastEl = document.querySelector('.print-hide-toast');
-                        const prevToastDisplay = toastEl?.style?.display;
-                        if (toastEl) toastEl.style.display = 'none';
-                        const canvas = await window.html2canvas(el, {
-                            scale: Math.min(2, window.devicePixelRatio || 1.5),
-                            useCORS: true,
-                            backgroundColor: '#ffffff',
-                            logging: false,
-                            // keep scroll position stable
-                            scrollX: 0,
-                            scrollY: -window.scrollY,
-                            windowWidth: document.documentElement.clientWidth,
-                        });
-                        if (toastEl) toastEl.style.display = prevToastDisplay || '';
-                        return canvas;
-                    };
-
-                    triggerToast('PDF wird erstellt…');
-
-                    // Capture Situation (Analyse) + Offer (Angebot)
-                    const situationCanvas = await captureForView('situation', '.situation-view-wrapper');
-                    const offerCanvas = await captureForView('offer', '.print-offer-view');
-
-                    // Restore previous view
-                    if (typeof setView === 'function') setView(prevView);
-                    await waitForPaint();
-
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-                    const addCanvasAsPage = (cv, isFirst) => {
-                        const imgData = cv.toDataURL('image/png', 1.0);
-                        const pageW = pdf.internal.pageSize.getWidth();
-                        const pageH = pdf.internal.pageSize.getHeight();
-                        // Fit image into page with small margins
-                        const margin = 6;
-                        const maxW = pageW - margin * 2;
-                        const maxH = pageH - margin * 2;
-                        const imgW = cv.width;
-                        const imgH = cv.height;
-                        const ratio = Math.min(maxW / imgW, maxH / imgH);
-                        const w = imgW * ratio;
-                        const h = imgH * ratio;
-                        const x = (pageW - w) / 2;
-                        const y = (pageH - h) / 2;
-                        if (!isFirst) pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', x, y, w, h, undefined, 'FAST');
-                    };
-
-                    addCanvasAsPage(situationCanvas, true);
-                    addCanvasAsPage(offerCanvas, false);
-
-                    const pdfBlob = pdf.output('blob');
-                    const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
-
-                    const shareData = {
-                        title: `Angebot für ${customerName}`,
-                        text: `Hallo! Hier ist das Angebot für ${customerName}. Monatlich im 1. Jahr: ${totalCost}€.`,
-                        files: [pdfFile]
-                    };
-
-                    // Prefer native share as real file
-                    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [pdfFile] }))) {
-                        await navigator.share(shareData);
-                        triggerToast('PDF geteilt.');
-                    } else {
-                        // Fallback: download
-                        const url = URL.createObjectURL(pdfBlob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        setTimeout(() => URL.revokeObjectURL(url), 3000);
-                        triggerToast('Teilen nicht unterstützt – PDF wurde heruntergeladen.');
-                    }
-                } catch (error) {
-                    console.error('PDF Share Fehler:', error);
-                    triggerToast('PDF-Share fehlgeschlagen.');
-                }
-            };
 
             return (
                 <div className="w-full h-full bg-[#f0f6ff] font-sans text-slate-800 flex flex-col overflow-hidden text-sm">
@@ -1949,7 +1939,7 @@ html, body {
                         {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
-                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center"><button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button><button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
+                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{isAndroidDevice && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
         }
 
             // --- PRINT: pro Seite einen eigenen Header einfügen (ohne Screen-Layout zu ändern) ---
