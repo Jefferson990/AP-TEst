@@ -1414,6 +1414,7 @@ html, body {
             const [color, setColor] = useState('#0044ff'); 
             const [strokeWidth, setStrokeWidth] = useState(4); 
             const [opacity, setOpacity] = useState(0.85); 
+            const [gestureMode, setGestureMode] = useState(false); // 🔍 Zoom/Pan-Lock für Touch (2-Finger Gesten im Canvas)
             
             const [drawnStrokes, setDrawnStrokes] = useState({ 
                 // Legacy (früher: ein großes Overlay-Canvas über allen Zeilen)
@@ -1435,10 +1436,24 @@ html, body {
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null); 
             
-            const toolRef = useRef('pen');
+                        const gestureModeRef = useRef(false);
+const toolRef = useRef('pen');
             const strokeWidthRef = useRef(4);
             const opacityRef = useRef(0.85);
             const colorRef = useRef('#0044ff'); 
+
+
+            // Sync GestureMode-Ref (für Callbacks) + Canvas-TouchAction sofort anpassen
+            useEffect(() => {
+                gestureModeRef.current = !!gestureMode;
+                // Alle Zeichnen-Canvases updaten (auch Small-Input/Offer/Situation)
+                try {
+                    document.querySelectorAll('canvas.drawing-canvas').forEach((c) => {
+                        const st = getCanvasPointerState(c);
+                        updateCanvasTouchAction(c, st.count || 0);
+                    });
+                } catch(_) {}
+            }, [gestureMode]);
             
             const scaleRef1 = useRef({ baseWidth: 0, scaleFactor: 1 });
             const scaleRef2 = useRef({ baseWidth: 0, scaleFactor: 1 });
@@ -1772,15 +1787,182 @@ html, body {
 
                 hasMigratedSituationRef.current = true;
             }, [view, drawnStrokes, setDrawnStrokes]);
- 
 
             const getRelativeCoords = (e, canvas) => { const rect = canvas.getBoundingClientRect(); const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; const cssX = clientX - rect.left; const cssY = clientY - rect.top; return { x: cssX, y: cssY }; };
-            const startDrawing = useCallback((e, ref, key) => { e.preventDefault(); const canvas = ref?.current; if(!canvas) return; const pointerType = e.pointerType; const isPenInput = pointerType === 'pen'; const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen'; const isSituationCanvasActive = key && key.startsWith('sit_') && inputMode === 'pen'; const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen'); 
-            const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen'; const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen'; if (!isPenInput || (!isMainCanvasPenActive && !isSituationCanvasActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) { return; } const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); const currentTool = toolRef.current; const currentStrokeWidth = strokeWidthRef.current; const currentColor = colorRef.current; const currentOpacity = opacityRef.current; const strokeBaseWidth = canvas.getBoundingClientRect().width; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth }; ctx.save(); const isOfferType = key.startsWith('offer'); const rawStrokeW = currentStrokeWidth; let visualBaseW; if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; } else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; } const finalLineWidth = visualBaseW / zoomLevel; if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; } ctx.beginPath(); ctx.moveTo(x, y); currentStrokeRef.current = newStroke; isDrawingRef.current = true; }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]); 
-            const draw = useCallback((e, ref, key) => { if (!isDrawingRef.current || !currentStrokeRef.current) return; e.preventDefault(); const canvas = ref.current; if(!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const zoomLevel = 1.0; const x = cssX / zoomLevel; const y = cssY / zoomLevel; const ctx = canvas.getContext('2d'); currentStrokeRef.current.points.push({ x, y }); ctx.save(); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); }, []); 
-            const stopDrawing = useCallback((e, ref) => { if (!isDrawingRef.current) return; const canvas = ref.current; if (!canvas) return; isDrawingRef.current = false; const finishedStroke = currentStrokeRef.current; currentStrokeRef.current = null; if (finishedStroke && finishedStroke.points.length > 1) { let key = null; if (ref === canvasRef) key = 'main'; else if (ref === sitCanvasRef_Kundenname) key = 'sit_Kundenname'; else if (ref === sitCanvasRef_Rufnummer) key = 'sit_Rufnummer'; else if (ref === sitCanvasRef_Anbieter) key = 'sit_Anbieter'; else if (ref === sitCanvasRef_Hardware) key = 'sit_Hardware'; else if (ref === sitCanvasRef_Nutzung) key = 'sit_Nutzung'; else if (ref === sitCanvasRef_Haushalt) key = 'sit_Haushalt'; else if (ref === sitCanvasRef_WeitereProdukte) key = 'sit_WeitereProdukte'; else if (ref === sitCanvasRef_Fernsehen) key = 'sit_Fernsehen'; else if (ref === sitCanvasRef_WiFi) key = 'sit_WiFi'; else if (ref === sitCanvasRef_Gesamtkosten) key = 'sit_Gesamtkosten'; else if (ref === emailCanvasRef) key = 'email'; else if (ref === providerCanvasRef) key = 'provider'; else if (ref === notesCanvasRef) key = 'notes'; else if (ref === offerCanvasRef1) key = 'offer1'; else if (ref === offerCanvasRef2) key = 'offer2'; else if (ref === offerCanvasRef3) key = 'offer3'; else if (ref === offerCost1Ref) key = 'cost_einmalig'; else if (ref === offerCost2Ref) key = 'cost_monatlich1'; else if (ref === offerCost3Ref) key = 'cost_monatlich2'; else if (ref === offerAgentRef) key = 'agent_name'; else if (ref === offerDateRef) key = 'date_field'; else if (ref === skipReasonCanvasRef) key = 'skip_reason'; if (key) { setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] })); if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); } } } const ctx = canvas.getContext('2d'); ctx.restore(); }, [setDrawnStrokes]);
 
-            const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
+            // ✅ Pinch-Zoom im Canvas erlauben:
+            // - 1 Finger/pen: Zeichnen (Default-Gesten blocken)
+            // - 2 Finger (touch): Browser darf zoomen (Pinch)
+            const getCanvasPointerState = (canvas) => {
+                if (!canvas) return { count: 0 };
+                if (!canvas.__pinchState) canvas.__pinchState = { count: 0 };
+                return canvas.__pinchState;
+            };
+            const updateCanvasTouchAction = (canvas, count) => {
+                if (!canvas) return;
+                // Wenn GestureMode aktiv: Touch-Gesten (Pan/Pinch) immer erlauben.
+                if (gestureModeRef?.current) {
+                    canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
+                    return;
+                }
+                // Normal: 1 Finger/Pen = Zeichnen (keine Default-Gesten), 2 Finger = Browser-Pan/Pinch erlauben.
+                canvas.style.touchAction = (count >= 2) ? 'pan-x pan-y pinch-zoom' : 'none';
+            };
+
+            const startDrawing = useCallback((e, ref, key) => {
+                const canvas = ref?.current;
+                if(!canvas) return;
+
+                // Multi-touch erkennen (2 Finger) -> Pinch erlauben
+                const st = getCanvasPointerState(canvas);
+                st.count = (st.count || 0) + 1;
+                updateCanvasTouchAction(canvas, st.count);
+
+                const pointerType = e.pointerType;
+                // GestureMode: Touch soll immer zoomen/pannen dürfen (auch mit 1 Finger, z.B. beim Verschieben auf gezoomter Seite)
+                if (gestureModeRef.current && pointerType === 'touch') {
+                    isDrawingRef.current = false;
+                    currentStrokeRef.current = null;
+                    return;
+                }
+
+                if (pointerType === 'touch' && st.count >= 2) {
+                    // Kein Zeichnen, keine preventDefault -> Browser-Geste (Zoom/Pan) zulassen
+                    isDrawingRef.current = false;
+                    currentStrokeRef.current = null;
+                    return;
+                }
+
+                // 1 Finger / Pen: Zeichnen (Default-Gesten blocken)
+                e.preventDefault();
+
+                const isPenInput = pointerType === 'pen';
+                const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen';
+                const isSituationCanvasActive = key && key.startsWith('sit_') && inputMode === 'pen';
+                const isSmallCanvasPenActive = (ref === emailCanvasRef && emailMode === 'pen') || (ref === providerCanvasRef && providerMode === 'pen') || (ref === notesCanvasRef && notesMode === 'pen') || (ref === skipReasonCanvasRef && skipReasonMode === 'pen');
+                const isOfferCanvasActive = (ref === offerCanvasRef1 || ref === offerCanvasRef2 || ref === offerCanvasRef3) && inputMode === 'pen';
+                const isOfferInputActive = (ref === offerCost1Ref || ref === offerCost2Ref || ref === offerCost3Ref || ref === offerAgentRef || ref === offerDateRef) && inputMode === 'pen';
+
+                if (!isPenInput || (!isMainCanvasPenActive && !isSituationCanvasActive && !isSmallCanvasPenActive && !isOfferCanvasActive && !isOfferInputActive)) {
+                    return;
+                }
+
+                const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {};
+                if (cssX == null || cssY == null) return;
+
+                const ctx = canvas.getContext('2d');
+                const currentTool = toolRef.current;
+                const currentStrokeWidth = strokeWidthRef.current;
+                const currentColor = colorRef.current;
+                const currentOpacity = opacityRef.current;
+                const strokeBaseWidth = canvas.getBoundingClientRect().width;
+                const zoomLevel = 1.0;
+                const x = cssX / zoomLevel;
+                const y = cssY / zoomLevel;
+
+                const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth };
+
+                ctx.save();
+                const isOfferType = key.startsWith('offer');
+                const rawStrokeW = currentStrokeWidth;
+                let visualBaseW;
+                if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; }
+                else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; }
+
+                const finalLineWidth = visualBaseW / zoomLevel;
+                if (currentTool === 'eraser') { ctx.lineWidth = finalLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; }
+                else if (currentTool === 'highlighter') { ctx.lineWidth = finalLineWidth * 3; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'destination-over'; }
+                else { ctx.lineWidth = finalLineWidth; ctx.strokeStyle = currentColor; ctx.globalAlpha = currentOpacity; ctx.globalCompositeOperation = 'source-over'; }
+
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+
+                currentStrokeRef.current = newStroke;
+                isDrawingRef.current = true;
+            }, [inputMode, emailMode, providerMode, notesMode, skipReasonMode, strokeWidth, color, opacity]);
+
+            const draw = useCallback((e, ref, key) => {
+                const canvas = ref.current;
+                if(!canvas) return;
+
+                const st = getCanvasPointerState(canvas);
+                const pointerType = e.pointerType;
+
+                // GestureMode oder 2 Finger aktiv -> kein Zeichnen, keine preventDefault
+                if ((gestureModeRef.current && pointerType === 'touch') || (pointerType === 'touch' && (st.count || 0) >= 2)) return;
+
+                if (!isDrawingRef.current || !currentStrokeRef.current) return;
+
+                e.preventDefault();
+
+                const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {};
+                if (cssX == null || cssY == null) return;
+
+                const zoomLevel = 1.0;
+                const x = cssX / zoomLevel;
+                const y = cssY / zoomLevel;
+
+                const ctx = canvas.getContext('2d');
+                currentStrokeRef.current.points.push({ x, y });
+                ctx.save();
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.restore();
+            }, []);
+
+            const stopDrawing = useCallback((e, ref) => {
+                const canvas = ref.current;
+                if (canvas) {
+                    // Pointer-Counter runterzählen (auch wenn nicht gezeichnet wurde)
+                    const st = getCanvasPointerState(canvas);
+                    st.count = Math.max(0, (st.count || 0) - 1);
+                    updateCanvasTouchAction(canvas, st.count);
+                }
+
+                if (!isDrawingRef.current) return;
+                if (!canvas) return;
+
+                isDrawingRef.current = false;
+                const finishedStroke = currentStrokeRef.current;
+                currentStrokeRef.current = null;
+
+                if (finishedStroke && finishedStroke.points.length > 1) {
+                    let key = null;
+                    if (ref === canvasRef) key = 'main';
+                    else if (ref === sitCanvasRef_Kundenname) key = 'sit_Kundenname';
+                    else if (ref === sitCanvasRef_Rufnummer) key = 'sit_Rufnummer';
+                    else if (ref === sitCanvasRef_Anbieter) key = 'sit_Anbieter';
+                    else if (ref === sitCanvasRef_Hardware) key = 'sit_Hardware';
+                    else if (ref === sitCanvasRef_Nutzung) key = 'sit_Nutzung';
+                    else if (ref === sitCanvasRef_Haushalt) key = 'sit_Haushalt';
+                    else if (ref === sitCanvasRef_WeitereProdukte) key = 'sit_WeitereProdukte';
+                    else if (ref === sitCanvasRef_Fernsehen) key = 'sit_Fernsehen';
+                    else if (ref === sitCanvasRef_WiFi) key = 'sit_WiFi';
+                    else if (ref === sitCanvasRef_Gesamtkosten) key = 'sit_Gesamtkosten';
+                    else if (ref === emailCanvasRef) key = 'email';
+                    else if (ref === providerCanvasRef) key = 'provider';
+                    else if (ref === notesCanvasRef) key = 'notes';
+                    else if (ref === offerCanvasRef1) key = 'offer1';
+                    else if (ref === offerCanvasRef2) key = 'offer2';
+                    else if (ref === offerCanvasRef3) key = 'offer3';
+                    else if (ref === offerCost1Ref) key = 'cost_einmalig';
+                    else if (ref === offerCost2Ref) key = 'cost_monatlich1';
+                    else if (ref === offerCost3Ref) key = 'cost_monatlich2';
+                    else if (ref === offerAgentRef) key = 'agent_name';
+                    else if (ref === offerDateRef) key = 'date_field';
+                    else if (ref === skipReasonCanvasRef) key = 'skip_reason';
+
+                    if (key) {
+                        setDrawnStrokes(prev => ({ ...prev, [key]: [...(prev[key] || []), finishedStroke] }));
+                        if (key.startsWith('offer')) { setRedrawCounter(r => r + 1); }
+                    }
+                }
+
+                const ctx = canvas.getContext('2d');
+                ctx.restore();
+            }, [setDrawnStrokes]);
+
+const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
             const toggleTech = (val) => setShowTechModal(val);
             const penTools = [{ id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' }, { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' }, { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' }];
             const handleOfferCostChange = (key, value) => { const cleanValue = value.replace(',', '.'); let val = parseFloat(cleanValue); const rawKey = `${key}Raw`; setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val })); };
@@ -1941,7 +2123,7 @@ const handlePDFShare = () => {
                     </div>
 
                     <div className="h-14 bg-[#f0f6ff] border-t border-slate-200 flex items-center px-4 shrink-0 z-40 justify-between shadow-sm relative w-full footer-bar">
-                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
+                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button><button onClick={() => setGestureMode(v => !v)} className={`p-2 rounded-md transition-colors ${gestureMode ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title={gestureMode ? 'Zoom/Pan aktiv (Tippen zum Deaktivieren)' : 'Zoom/Pan (2 Finger)'}><Icon d={ICONS.ZoomIn} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
                         </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
