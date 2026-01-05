@@ -2230,9 +2230,20 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
          html{height:auto;}
          /* Share-Modus: Header sichtbar, keine doppelten Links-Offsets innerhalb der Views */
          .pdf-share-mode .print-page-header{display:flex !important;}
+         /* Share: eigene Seitensteuerung (verhindert Leer-Seiten durch Print-Pagebreaks) */
+         .pdf-share-mode .situation-view-wrapper{break-after:auto !important; page-break-after:auto !important;}
+         .pdf-share-mode .print-offer-view{break-after:auto !important; page-break-after:auto !important;}
+         .pdf-share-mode .share-page{break-after:page; page-break-after:always;}
+         .pdf-share-mode .share-page:last-child{break-after:auto !important; page-break-after:auto !important;}
          .pdf-share-mode .situation-view-wrapper{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
          .pdf-share-mode .print-offer-view{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
-         .pdf-share-mode body{background:#ffffff !important;}`;
+         .pdf-share-mode body{background:#ffffff !important;}
+         /* Share: Fallback-Header-Styling (falls Print-CSS nicht sauber kopiert wird) */
+         .pdf-share-mode header{display:none !important;}
+         .pdf-share-mode .print-page-header{display:flex !important;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#ffffff !important;border:1px solid #e2e8f0;border-radius:14px;margin:0 0 10px 0;}
+         .pdf-share-mode .print-page-header .title{font-size:28px;font-weight:900;color:#0b1e42;letter-spacing:-0.02em;}
+         .pdf-share-mode .print-page-header .print-header-right{display:flex;align-items:center;gap:10px;}
+         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;object-fit:contain;}`;
     doc.head.appendChild(styleEl);
 
     const base = doc.createElement('base');
@@ -2248,21 +2259,58 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
     doc.body.appendChild(container);
 
     // Inhalt klonen
-    const cloneSituation = sourceSituation.cloneNode(true);
-    try { cloneSituation.classList.remove('hidden'); } catch(e){}
-    cloneSituation.style.display = 'flex';
-    cloneSituation.style.height = 'auto';
-    cloneSituation.style.overflow = 'visible';
-    cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-    container.appendChild(cloneSituation);
 
-    const pageBreak = doc.createElement('div');
-    pageBreak.style.cssText = 'break-after:page; page-break-after:always; height:0;';
-    container.appendChild(pageBreak);
+    // --- Share: Seiten-Wrapping + Header im Iframe (robust für html2pdf) ---
+const makeShareHeader = (titleText) => {
+    const h = doc.createElement('div');
+    h.className = 'share-page-header print-page-header';
+    const t = doc.createElement('div');
+    t.className = 'title';
+    t.textContent = titleText;
 
-    const cloneOffer = sourceOffer.cloneNode(true);
-    cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-    container.appendChild(cloneOffer);
+    const right = doc.createElement('div');
+    right.className = 'print-header-right';
+    const img = doc.createElement('img');
+    img.src = HIDA_LOGO_DATA_URI;
+    img.alt = 'HIDA';
+    img.className = 'hida-logo-print';
+    right.appendChild(img);
+
+    h.appendChild(t);
+    h.appendChild(right);
+    return h;
+};
+
+const wrapSharePage = (titleText, contentEl) => {
+    const page = doc.createElement('div');
+    page.className = 'share-page';
+    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:visible;height:auto;';
+    page.appendChild(makeShareHeader(titleText));
+    page.appendChild(contentEl);
+    return page;
+};
+
+// Inhalt klonen + Print-Header im Clone entfernen (wir setzen den Header oben im Wrapper)
+const cloneSituation = sourceSituation.cloneNode(true);
+try { cloneSituation.classList.remove('hidden'); } catch(e){}
+cloneSituation.querySelectorAll('.print-page-header').forEach(n => n.remove());
+cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+cloneSituation.style.display = 'flex';
+cloneSituation.style.height = 'auto';
+cloneSituation.style.overflow = 'visible';
+
+const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
+container.appendChild(page1);
+
+const cloneOffer = sourceOffer.cloneNode(true);
+cloneOffer.querySelectorAll('.print-page-header').forEach(n => n.remove());
+cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+cloneOffer.style.display = 'block';
+cloneOffer.style.height = 'auto';
+cloneOffer.style.overflow = 'visible';
+
+const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
+container.appendChild(page2);
 
     // Layout settle
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
