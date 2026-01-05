@@ -14,6 +14,7 @@
     
     <!-- 3. Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
 <style>
         /* Global Visual Boost */
@@ -1971,20 +1972,164 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
 
-// --- ANDROID SHARE (PRINT FLOW) ---
-// Kein Screenshot/Canvas-PDF mehr. Stattdessen startet der Button den System-Print,
-// damit @media print als Master-Layout genutzt wird (echtes PDF über „Als PDF speichern“).
-const handlePDFShare = () => {
-    if (!canNativeShare) {
-        triggerToast('Teilen ist nur auf Android verfügbar.');
-        return;
+// --- ANDROID SHARE (UX-OPTIMIERUNG: echtes PDF + Web Share API) ---
+// Ziel: PDF im Hintergrund exakt im Print-Look erzeugen (ohne Print-Dialog) und direkt teilen.
+// Technik: Offscreen-Iframe mit kopierten Styles + @media print => @media all, dann html2pdf (Blob) -> File -> navigator.share.
+const handlePDFShare = async () => {
+    try {
+        if (!canNativeShare) {
+            triggerToast('Teilen ist nur auf Android verfügbar.');
+            return;
+        }
+        if (!window.html2pdf) {
+            // CDN geblockt/offline -> sauberer Fallback
+            triggerToast('PDF-Generator nicht verfügbar. Fallback: Drucken (System).');
+            setTimeout(() => { try { window.print(); } catch (e) { console.error(e); } }, 200);
+            return;
+        }
+
+        // --- kleines UI-Feedback (Overlay) ---
+        const showOverlay = (msg='PDF wird erstellt...') => {
+            let ov = document.getElementById('pdf-share-overlay');
+            if (!ov) {
+                ov = document.createElement('div');
+                ov.id = 'pdf-share-overlay';
+                ov.style.cssText = [
+                    'position:fixed','inset:0','z-index:99999',
+                    'background:rgba(15,23,42,0.55)','backdrop-filter:blur(6px)',
+                    'display:flex','align-items:center','justify-content:center','padding:16px'
+                ].join(';');
+                ov.innerHTML = `
+                  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:18px 18px;min-width:260px;max-width:360px;text-align:center;font-family:Arial,Helvetica,sans-serif;">
+                    <div style="width:44px;height:44px;border-radius:999px;border:5px solid #e2e8f0;border-top-color:#2563eb;margin:0 auto 12px auto;animation:pspin 0.9s linear infinite;"></div>
+                    <div id="pdf-share-overlay-text" style="font-weight:800;color:#0f172a;letter-spacing:-0.01em;">${msg}</div>
+                    <div style="margin-top:6px;font-size:12px;color:#64748b;">Bitte kurz warten…</div>
+                  </div>
+                `;
+                const st = document.createElement('style');
+                st.textContent = '@keyframes pspin{to{transform:rotate(360deg)}}';
+                ov.appendChild(st);
+                document.body.appendChild(ov);
+            } else {
+                const t = ov.querySelector('#pdf-share-overlay-text');
+                if (t) t.textContent = msg;
+                ov.style.display = 'flex';
+            }
+        };
+        const hideOverlay = () => {
+            const ov = document.getElementById('pdf-share-overlay');
+            if (ov) ov.style.display = 'none';
+        };
+
+        showOverlay('PDF wird erstellt...');
+
+        // Toast/Dropdowns schließen lassen
+        await new Promise(r => setTimeout(r, 80));
+
+        // Print-Header wie beim echten Druck einfügen (wird nachher wieder entfernt)
+        try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){ console.warn(e); }
+
+        const source = document.querySelector('.print-offer-view');
+        if (!source) {
+            hideOverlay();
+            triggerToast('Angebots-Ansicht nicht gefunden.');
+            return;
+        }
+
+        // --- Offscreen-Iframe erstellen (damit Print-CSS "aktiv" wird, ohne UI zu zerstören) ---
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1200px;height:1600px;opacity:0;pointer-events:none;';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentDocument;
+        doc.open();
+        doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body></body></html>');
+        doc.close();
+
+        // 1) alle vorhandenen <style>-Tags aus dem Hauptdokument kopieren (inkl. Tailwind-injected CSS)
+        const styles = Array.from(document.querySelectorAll('style'))
+            .map(s => s.textContent || '')
+            .filter(Boolean)
+            .join('\n\n');
+
+        // 2) Print-Regeln im Iframe "immer aktiv" machen: @media print -> @media all
+        const stylesPrintAll = styles.replace(/@media\s+print/g, '@media all');
+
+        const styleEl = doc.createElement('style');
+        styleEl.textContent = stylesPrintAll + '\n\n' + 'body{background:#fff;margin:0;padding:0;}';
+        doc.head.appendChild(styleEl);
+
+        // 3) Basis <base> setzen, damit data-uri / relative URLs sicher sind
+        const base = doc.createElement('base');
+        base.href = window.location.href;
+        doc.head.appendChild(base);
+
+        // 4) Inhalt klonen (nur Angebot) und einfügen
+        const clone = source.cloneNode(true);
+        // im Clone ggf. Overlay/Toast etc. sicher raus
+        clone.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+        doc.body.appendChild(clone);
+
+        // 5) Layout settle
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        showOverlay('PDF wird gerendert...');
+
+        // --- PDF als Blob erzeugen ---
+        const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
+        const opt = {
+            margin:       0,
+            filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 1200 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css','legacy'] }
+        };
+
+        // html2pdf Worker: outputPdf('blob') liefert Promise<Blob>
+        const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
+        const file = new File([blob], filename, { type: 'application/pdf' });
+
+        // Cleanup iframe so schnell wie möglich
+        try { document.body.removeChild(iframe); } catch(e) {}
+
+        showOverlay('Teilen-Dialog wird geöffnet...');
+
+        // --- Teilen per Web Share API (mit Files) ---
+        if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+            hideOverlay();
+            triggerToast('Dieses Gerät/Browser kann PDF-Dateien nicht direkt teilen.');
+            // Fallback: Download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            return;
+        }
+
+        await navigator.share({
+            title: 'Angebot (PDF)',
+            text: 'PDF-Angebot teilen',
+            files: [file]
+        });
+
+        hideOverlay();
+        triggerToast('PDF geteilt.');
+    } catch (err) {
+        console.error(err);
+        // Best-effort cleanup
+        try { const iframe = document.querySelector('iframe[aria-hidden="true"]'); if (iframe) iframe.remove(); } catch(e){}
+        const ov = document.getElementById('pdf-share-overlay');
+        if (ov) ov.style.display = 'none';
+        triggerToast('Teilen abgebrochen oder nicht möglich.');
+    } finally {
+        // Print-Header wieder entfernen (wie afterprint)
+        try { document.querySelectorAll('.print-page-header').forEach(el => el.remove()); } catch(e){}
     }
-    triggerToast('PDF erstellen: Im Dialog „Als PDF speichern“ wählen – danach direkt per WhatsApp/Outlook teilen.');
-    // kleine Verzögerung, damit Toast/Dropdowns schließen können
-    setTimeout(() => {
-        try { window.print(); } catch (e) { console.error(e); }
-    }, 200);
 };
+
 
 
             return (
