@@ -257,6 +257,7 @@ html, body {
 
         margin: 0 !important;
         padding: 0 !important;
+        padding-left: 40px !important; /* Safe-Shift für links (Print + Share identisch) */
         background: transparent !important;
     }
 
@@ -1531,6 +1532,12 @@ const resolveUserName = (raw) => {
             const ua = (navigator.userAgent || '');
             const isProbablyAndroid = /Android/i.test(ua) || /; Android /i.test(ua);
             const canNativeShare = !!(navigator.share && window.isSecureContext);
+            // --- OneDrive Auto-Upload (Power Automate HTTP Gateway) ---
+            // Schritt 1: In Power Automate Flow-URL eintragen (When an HTTP request is received)
+            // Schritt 2: Optionales Shared Secret (im Flow prüfen)
+            const PA_UPLOAD_URL = 'PASTE_POWER_AUTOMATE_FLOW_URL_HERE';
+            const PA_SHARED_KEY = ''; // optional: z.B. 'hetec-xyz-123'
+
             // NOTE: Tablet-Browser im "Desktopmodus" kann 'Android' aus dem User-Agent entfernen.
             // Daher UI nicht nur nach UA, sondern nach echter WebShare-Fähigkeit anzeigen.
             const showShareButton = canNativeShare;
@@ -1711,9 +1718,27 @@ const toolRef = useRef('pen');
             
             const handlePrint = useCallback(() => { window.print(); }, []);
 
-            const handleFinishOfferClick = () => {
+            
+            const getAgentDisplayNameForUpload = () => {
+                const raw = (textData && textData.AgentName) ? String(textData.AgentName).trim() : '';
+                if (!raw) return 'Elif Icik';
+                if (raw === 'E.I' || raw.toLowerCase() === 'e.i') return 'Elif Icik';
+                if (raw === 'Max Mustermann' || raw.toLowerCase() === 'unknown') return 'Elif Icik';
+                return raw;
+            };
+            const getDslFlagForUpload = () => {
+                try {
+                    const stats = buildCanvasStatsFromDrawnStrokes(drawnStrokes, textData, { skipReason });
+                    const dslOffered = !!(stats?.offer2?.used || stats?.offer3?.used);
+                    return dslOffered ? 'ja' : 'nein';
+                } catch(e) { return 'nein'; }
+            };
+
+const handleFinishOfferClick = () => {
                 // If signature exists, assume it was already processed as a 'deal', so just print or finish
                 if (customerSignature) {
+                    // Abschluss: im Hintergrund als PDF (Print-Look) nach OneDrive (Power Automate) hochladen
+                    backgroundAutoUpload({ type: 'abschluss', triggerToast, ensurePrintHeaders, getAgent: getAgentDisplayNameForUpload, getDsl: getDslFlagForUpload });
                     handlePrint(); 
                 } else {
                     // Open the decision modal
@@ -1748,6 +1773,8 @@ const toolRef = useRef('pen');
                     // Clear signature just in case
                     setCustomerSignature(null);
                     triggerToast("Angebot wird gedruckt (Status: Offen)");
+                    // Angebot: im Hintergrund als PDF (Print-Look) nach OneDrive (Power Automate) hochladen
+                    backgroundAutoUpload({ type: 'angebot', triggerToast, ensurePrintHeaders, getAgent: getAgentDisplayNameForUpload, getDsl: getDslFlagForUpload });
                     setTimeout(() => handlePrint(), 500);
                 }
             };
@@ -2102,6 +2129,157 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
 
+
+// --- OneDrive Auto-Upload Helpers ---
+// PDF im "Print-Look" als Blob erzeugen (ohne Print-Dialog). Wiederverwendet von Share + Auto-Upload.
+const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
+    if (!window.html2pdf) throw new Error('html2pdf missing');
+    // Print-Header wie beim echten Druck einfügen (wird nachher wieder entfernt)
+    try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){}
+
+    const sourceSituation = document.querySelector('.situation-view-wrapper');
+    const sourceOffer = document.querySelector('.print-offer-view');
+    if (!sourceOffer || !sourceSituation) throw new Error('print views not found');
+
+    // Offscreen-Iframe
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1123px;height:2600px;opacity:0;pointer-events:none;';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body></body></html>');
+    doc.close();
+
+    
+    // Share-PDF: aktiviere einen eigenen Modus im Iframe (damit Header + Safe-Shift garantiert greifen)
+    try { doc.body.classList.add('pdf-share-mode'); } catch(e){}
+// Styles kopieren und Print-Regeln immer aktiv machen
+    const styles = Array.from(document.querySelectorAll('style'))
+        .map(s => s.textContent || '')
+        .filter(Boolean)
+        .join('\n\n');
+    const stylesPrintAll = styles.replace(/@media\s+print/g, '@media all');
+    const styleEl = doc.createElement('style');
+    styleEl.textContent = stylesPrintAll + "\n\n" + 'html,body{background:#fff;margin:0;padding:0;width:1123px;max-width:1123px;overflow:visible;}' + "\n" + '.pdf-share-mode .print-page-header{display:flex !important;} .pdf-share-mode .situation-view-wrapper{padding-left:40px !important;} .pdf-share-mode body{background:#ffffff !important;}' ;
+    doc.head.appendChild(styleEl);
+
+    const base = doc.createElement('base');
+    base.href = window.location.href;
+    doc.head.appendChild(base);
+
+    const container = doc.createElement('div');
+    container.style.cssText = 'background:#fff; width:1123px; box-sizing:border-box; padding:18.9px 18.9px 18.9px 78.9px; height:auto; overflow:visible;';
+    doc.body.appendChild(container);
+
+
+    const cloneSituation = sourceSituation.cloneNode(true);
+    try { cloneSituation.classList.remove('hidden'); } catch(e){}
+    cloneSituation.style.display = 'flex';
+    cloneSituation.style.height = 'auto';
+    cloneSituation.style.overflow = 'visible';
+    cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+    container.appendChild(cloneSituation);
+
+    const pageBreak = doc.createElement('div');
+    pageBreak.style.cssText = 'break-after:page; page-break-after:always; height:0;';
+    container.appendChild(pageBreak);
+
+    const cloneOffer = sourceOffer.cloneNode(true);
+    cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+    container.appendChild(cloneOffer);
+
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // IMPORTANT: Einige PDF-Viewer/Android-Browser ignorieren bei html2pdf gelegentlich
+    // die Orientation, wenn nur "format:'a4'" gesetzt ist. Daher geben wir A4-Landscape
+    // explizit als Custom-Format (pt) an. Das stellt sicher, dass die Seiten wirklich
+    // im Querformat angelegt werden (nicht nur der Inhalt skaliert).
+    const A4_LANDSCAPE_PT = [841.89, 595.28]; // 297x210mm in points
+
+    const opt = {
+        margin:       [5,5,5,5],
+        filename:     `Angebot_${new Date().toISOString().slice(0,10)}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  {
+            scale: 2,
+            windowWidth: 1123,
+            windowHeight: 794,
+            width: 1123,
+            height: 794,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0
+        },
+        jsPDF:        { unit: 'pt', format: A4_LANDSCAPE_PT, orientation: 'landscape' },
+        pagebreak:    { mode: ['css','legacy'] }
+    };
+
+    try {
+        const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
+        return blob;
+    } finally {
+        try { document.body.removeChild(iframe); } catch(e){}
+        try { document.querySelectorAll('.print-page-header').forEach(el => el.remove()); } catch(e){}
+    }
+};
+
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        const res = String(reader.result || '');
+        // data:application/pdf;base64,XXXX
+        const idx = res.indexOf('base64,');
+        resolve(idx >= 0 ? res.slice(idx + 7) : res);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+});
+
+// Sendet PDF + Metadaten an Power Automate (Flow speichert in OneDrive)
+const uploadPdfToPowerAutomate = async ({ blob, type, dsl, agent, dateISO, triggerToast }) => {
+    if (!PA_UPLOAD_URL || PA_UPLOAD_URL.includes('PASTE_POWER_AUTOMATE_FLOW_URL_HERE')) {
+        // Noch nicht konfiguriert -> leise überspringen
+        triggerToast && triggerToast('OneDrive Auto-Upload ist noch nicht konfiguriert (Flow-URL fehlt).');
+        return { ok:false, skipped:true };
+    }
+    const pdfBase64 = await blobToBase64(blob);
+    const payload = {
+        type,                // 'abschluss' | 'angebot'
+        dsl,                 // 'ja' | 'nein'
+        agent,
+        date: dateISO.slice(0,10),
+        ts: dateISO,
+        key: PA_SHARED_KEY || undefined,
+        pdfBase64
+    };
+    const res = await fetch(PA_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Upload failed: ' + res.status);
+    return { ok:true };
+};
+
+// Hintergrund-Upload: erstellt Print-Look PDF und lädt es hoch. UI bleibt normal (Print-Dialog kann trotzdem kommen).
+const backgroundAutoUpload = async ({ type, triggerToast, ensurePrintHeaders, getAgent, getDsl }) => {
+    try {
+        if (!window.html2pdf) return; // offline/CDN block -> skip
+        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders);
+        const dateISO = new Date().toISOString();
+        const agent = getAgent();
+        const dsl = getDsl();
+        await uploadPdfToPowerAutomate({ blob, type, dsl, agent, dateISO, triggerToast });
+    } catch (e) {
+        console.warn('Auto-Upload skipped:', e);
+        // bewusst nur leise, damit Verkauf nicht gestört wird
+    }
+};
+
 // --- ANDROID SHARE (UX-OPTIMIERUNG: echtes PDF + Web Share API) ---
 // Ziel: PDF im Hintergrund exakt im Print-Look erzeugen (ohne Print-Dialog) und direkt teilen.
 // Technik: Offscreen-Iframe mit kopierten Styles + @media print => @media all, dann html2pdf (Blob) -> File -> navigator.share.
@@ -2156,92 +2334,12 @@ const handlePDFShare = async () => {
         // Toast/Dropdowns schließen lassen
         await new Promise(r => setTimeout(r, 80));
 
-        // Print-Header wie beim echten Druck einfügen (wird nachher wieder entfernt)
-        try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){ console.warn(e); }
-
-        const sourceSituation = document.querySelector('.situation-view-wrapper');
-const sourceOffer = document.querySelector('.print-offer-view');
-if (!sourceOffer || !sourceSituation) {
-    hideOverlay();
-    triggerToast('Druck-Ansichten nicht gefunden (Seite 1/2).');
-    return;
-}
-
-        // --- Offscreen-Iframe erstellen (damit Print-CSS "aktiv" wird, ohne UI zu zerstören) ---
-        const iframe = document.createElement('iframe');
-        iframe.setAttribute('aria-hidden', 'true');
-        iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:1123px;height:2600px;opacity:0;pointer-events:none;';
-        document.body.appendChild(iframe);
-
-        const doc = iframe.contentDocument;
-        doc.open();
-        doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body></body></html>');
-        doc.close();
-
-        // 1) alle vorhandenen <style>-Tags aus dem Hauptdokument kopieren (inkl. Tailwind-injected CSS)
-        const styles = Array.from(document.querySelectorAll('style'))
-            .map(s => s.textContent || '')
-            .filter(Boolean)
-            .join('\n\n');
-
-        // 2) Print-Regeln im Iframe "immer aktiv" machen: @media print -> @media all
-        const stylesPrintAll = styles.replace(/@media\s+print/g, '@media all');
-
-        const styleEl = doc.createElement('style');
-        styleEl.textContent = stylesPrintAll + "\n\n" + 'html,body{background:#fff;margin:0;padding:0;width:1123px;max-width:1123px;overflow:visible;}';
-        doc.head.appendChild(styleEl);
-
-        // 3) Basis <base> setzen, damit data-uri / relative URLs sicher sind
-        const base = doc.createElement('base');
-        base.href = window.location.href;
-        doc.head.appendChild(base);
-
-        // 4) Inhalt klonen (Seite 1 + Seite 2) und einfügen – mit hartem Seitenumbruch dazwischen
-const container = doc.createElement('div');
-container.style.cssText = 'background:#fff; width:1123px; box-sizing:border-box; padding:18.9px 18.9px 18.9px 38.9px; height:auto; overflow:visible;';
-doc.body.appendChild(container);
-
-const cloneSituation = sourceSituation.cloneNode(true);
-// "hidden" / display-None entfernen, damit Seite 1 im PDF sichtbar ist
-try { cloneSituation.classList.remove('hidden'); } catch(e){}
-cloneSituation.style.display = 'flex';
-cloneSituation.style.height = 'auto';
-cloneSituation.style.overflow = 'visible';
-// Overlay/Toast etc. sicher raus
-cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-container.appendChild(cloneSituation);
-
-// Expliziter Seitenumbruch: Seite 1 -> Seite 2
-const pageBreak = doc.createElement('div');
-pageBreak.style.cssText = 'break-after:page; page-break-after:always; height:0;';
-container.appendChild(pageBreak);
-
-const cloneOffer = sourceOffer.cloneNode(true);
-cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-container.appendChild(cloneOffer);
-
-        // 5) Layout settle
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
+        // Print-Look PDF als Blob erzeugen (shared helper, inkl. Header/Logo & Right-Shift)
         showOverlay('PDF wird gerendert...');
-
-        // --- PDF als Blob erzeugen ---
         const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
-        const opt = {
-            margin:       [5,5,5,5],
-            filename,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  {scale: 2, windowWidth: 1123, windowHeight: 794, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0},
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-            pagebreak:    { mode: ['css','legacy'] }
-        };
+        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders);
 
-        // html2pdf Worker: outputPdf('blob') liefert Promise<Blob>
-        const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
-        const file = new File([blob], filename, { type: 'application/pdf' });
-
-        // Cleanup iframe so schnell wie möglich
-        try { document.body.removeChild(iframe); } catch(e) {}
+const file = new File([blob], filename, { type: 'application/pdf' });
 
         showOverlay('Teilen-Dialog wird geöffnet...');
 
