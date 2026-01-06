@@ -630,6 +630,33 @@ html, body {
 
     doc.head.appendChild(styleEl);
 
+
+/* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
+:root{
+  --SHARE_OFFSET_X: 90px; /* + = rechts | - = links */
+}
+
+.share-cover,
+.share-outro{
+  margin-left: var(--SHARE_OFFSET_X);
+  margin-right: auto;
+}
+
+
+/* ===== SHARE OFFSET OVERRIDE (wirkt beim Teilen / PDF-Share) ===== */
+:root{
+  --SHARE_OFFSET_X: 40px; /* + = rechts | - = links */
+}
+/* In Share-PDF werden Seiten als .share-page gerendert – daher hier verschieben */
+.pdf-share-mode .share-page,
+.pdf-share-mode .share-cover,
+.pdf-share-mode .share-outro{
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  transform: translateX(var(--SHARE_OFFSET_X)) !important;
+  transform-origin: top left;
+}
+
 </style>
 </head>
 <body>
@@ -2271,22 +2298,12 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
 const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
     if (!window.html2pdf) throw new Error('html2pdf missing');
 
-    // --- SHARE OFFSET (wirkt NUR für "Teilen"-PDF, nicht für echten Druck) ---
-    // Nach rechts/unten verschieben, ohne dass der Inhalt "leer" wird.
-    // Hinweis: Große X-Werte brauchen mehr Capture-Breite im Offscreen-Iframe.
-    const SHARE_OFFSET_X_PX = 220;   // z.B. 40, 90, 290 ...
-    const SHARE_OFFSET_Y_PX = 90;     // z.B. 0, 20 ...
-    const SHARE_BASE_PADDING_PX = 18.9;
+    // --- SHARE HARD-LOCK (v50_52): exakt links/rechts bündig, kein Cut ---
+// Ziel: Share-PDF soll exakt die Inhaltsbreite nutzen (keine Offsets, kein Extra-Padding, keine Skalierung)
+const SHARE_PAGE_WIDTH_PX  = 1123; // A4 Landscape @ ~96dpi
+const SHARE_PAGE_HEIGHT_PX = 794;
+const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
 
-    // Zielbreite des A4-Landscape-Layouts (px) – in deinem Layout passt 1123 sehr gut.
-    const SHARE_PAGE_WIDTH_PX = 1123;
-    // Capture-Breite: erweitern, wenn du stark nach rechts schiebst (sonst kann html2canvas nur "Rand" sehen).
-    const SHARE_DOC_WIDTH_PX = Math.max(SHARE_PAGE_WIDTH_PX, SHARE_PAGE_WIDTH_PX + Math.max(0, SHARE_OFFSET_X_PX) + 120);
-
-    const SHARE_PAD_LEFT = (SHARE_BASE_PADDING_PX + SHARE_OFFSET_X_PX);
-    const SHARE_PAD_TOP  = (SHARE_BASE_PADDING_PX + SHARE_OFFSET_Y_PX);
-
-    // Print-Header wie beim echten Druck einfügen (wird nachher wieder entfernt)
     try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){}
 
     const sourceSituation = document.querySelector('.situation-view-wrapper');
@@ -2345,11 +2362,21 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
 
     // Container: hier passiert die echte Verschiebung (einmalig, stabil)
     const container = doc.createElement('div');
-    container.style.cssText =
-        `background:#fff;width:${SHARE_DOC_WIDTH_PX}px;box-sizing:border-box;` +
-        `padding:${SHARE_PAD_TOP}px ${SHARE_BASE_PADDING_PX}px ${SHARE_BASE_PADDING_PX}px ${SHARE_PAD_LEFT}px;` +
-        `height:auto;overflow:visible;`;
-    doc.body.appendChild(container);
+// Container = exakte Seitenbreite (keine Innen-Paddings/Offsets)
+container.style.cssText =
+    `background:#fff;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;margin:0 auto;` +
+    `box-sizing:border-box;padding:0;overflow:visible;height:auto;`;
+
+// Stage = 1:1 Breite, zentriert (kein Scale/Shift)
+const stage = doc.createElement('div');
+stage.className = 'share-safe-stage';
+stage.style.cssText =
+    `width:${SHARE_PAGE_WIDTH_PX}px;max-width:${SHARE_PAGE_WIDTH_PX}px;margin:0 auto;` +
+    `height:auto;overflow:visible;`;
+
+doc.body.appendChild(container);
+container.appendChild(stage);
+
 
     // Inhalt klonen
 
@@ -2471,10 +2498,10 @@ const makeOutroContent = () => {
 
 // Cover als erste Seite
 const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
-container.appendChild(coverPage);
+stage.appendChild(coverPage);
 
 const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
-container.appendChild(page1);
+stage.appendChild(page1);
 
 const cloneOffer = sourceOffer.cloneNode(true);
 cloneOffer.querySelectorAll('.print-page-header').forEach(n => n.remove());
@@ -2484,11 +2511,11 @@ cloneOffer.style.height = 'auto';
 cloneOffer.style.overflow = 'visible';
 
 const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
-container.appendChild(page2);
+stage.appendChild(page2);
 
 // Outro als letzte Seite
 const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
-container.appendChild(outroPage);
+stage.appendChild(outroPage);
 
     // Layout settle
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -2503,11 +2530,12 @@ container.appendChild(outroPage);
     ) + 80;
 
     const opt = {
-        margin:       [5,5,5,5],
+        // ✅ echte PDF-Zentrierung: jsPDF-Margins (mm)
+        margin:       0, // top, left, bottom, right
         filename:     `Angebot_${new Date().toISOString().slice(0,10)}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  {
-            scale: 2,
+            scale: 3,
             windowWidth: SHARE_DOC_WIDTH_PX,
             windowHeight: SHARE_SCROLL_H,
             useCORS: true,
@@ -2516,10 +2544,10 @@ container.appendChild(outroPage);
             scrollX: 0,
             scrollY: 0
         },
-        jsPDF:        { unit: 'pt', format: A4_LANDSCAPE_PT, orientation: 'landscape' },
+        // A4 quer in mm (robust in Adobe/Edge/Samsung)
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
         pagebreak:    { mode: ['css','legacy'] }
     };
-
     try {
         const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
         return blob;
