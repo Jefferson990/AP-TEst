@@ -45,7 +45,9 @@
         .beam-anim { animation: beam 1.5s linear infinite; }
 
         /* General Layout */
-        html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; background-color: #f0f6ff; }
+        html, body, #root { 
+        min-width: 297mm !important;
+width: 100%; height: 100%; margin: 0; overflow: hidden; background-color: #f0f6ff; }
         
         /* Canvas Layer: touch-action none is crucial for pen handling */
         .canvas-layer { pointer-events: auto; touch-action: none; }
@@ -636,7 +638,15 @@ html, body {
         margin:0 !important;
         page-break-after:always !important;
         overflow:hidden !important;
+        /* Vollfläche: keine Karten-Optik im PDF */
+        border-radius:0 !important;
+        padding:0 !important;
     }
+
+    /* Cover/Outro Inhalt bekommt sein Padding INSIDE, damit außen wirklich Vollfläche ist */
+    body.pdf-share-mode .share-cover-inner{ padding:28px !important; }
+    body.pdf-share-mode .share-outro{ display:flex !important; align-items:center !important; justify-content:center !important; }
+    body.pdf-share-mode .share-outro-grid{ padding:28px !important; width:100% !important; box-sizing:border-box !important; }
 
 }
 
@@ -705,10 +715,6 @@ html, body {
 .share-outro-link{font-size:9px;word-break:break-all;color:rgba(255,255,255,0.65);margin-top:6px;font-weight:800;}
 .share-outro-amount{margin-top:6px;font-size:44px;font-weight:1000;color:#93c5fd;}
 .share-outro-voucher{margin-top:10px;padding:12px 10px;border:2px dashed rgba(255,255,255,0.35);border-radius:18px;font-family:monospace;font-size:16px;font-weight:1000;background:rgba(0,0,0,0.18);letter-spacing:0.12em;}
-
-    doc.head.appendChild(styleEl);
-
-
 /* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
 :root{
   --SHARE_OFFSET_X: 0px; /* + = rechts | - = links */
@@ -1926,6 +1932,34 @@ const fileInputRef = useRef(null);
             const getStaticLabel = useCallback((key) => { if (displayLanguage === 'de') return STATIC_LABELS[key] || key; return staticTranslations[displayLanguage]?.[key] || MOCK_TRANSLATIONS[displayLanguage]?.[key] || STATIC_LABELS[key] || key; }, [staticTranslations, displayLanguage]);
 
             const triggerToast = (message) => { clearTimeout(toastTimerRef.current); setToastMessage(message); toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000); };
+
+
+            // ===== Fullscreen Toggle (F11-like) =====
+            const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+            useEffect(() => {
+                const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+                document.addEventListener('fullscreenchange', onFsChange);
+                return () => document.removeEventListener('fullscreenchange', onFsChange);
+            }, []);
+
+            const toggleFullScreen = useCallback(async () => {
+                try {
+                    if (!document.fullscreenElement) {
+                        const el = document.documentElement;
+                        if (el && el.requestFullscreen) {
+                            await el.requestFullscreen();
+                        } else {
+                            triggerToast && triggerToast('Vollbild wird von diesem Browser nicht unterstützt (iOS/Safari). Tipp: Als PWA „Zum Home‑Bildschirm“ hinzufügen.');
+                        }
+                    } else {
+                        if (document.exitFullscreen) await document.exitFullscreen();
+                    }
+                } catch (err) {
+                    console.warn('fullscreen failed', err);
+                    triggerToast && triggerToast('Vollbild konnte nicht aktiviert werden.');
+                }
+            }, [triggerToast]);
+
             const openOneDriveLink = () => { if (oneDriveLink && oneDriveLink.startsWith('http')) { window.open(oneDriveLink, '_blank'); triggerToast('Aktionsmappe geöffnet.'); } else { triggerToast('WICHTIG: Kein gültiger OneDrive Link hinterlegt. Bitte pflegen Sie den Link in den Einstellungen.'); } };
             const handleFileSelect = (event) => { const file = event.target.files?.[0]; event.target.value = null; setRedrawCounter(r => r + 1); if (!file) { triggerToast('Datei-Auswahl abgebrochen.'); return; } if (!file.type.startsWith('image/') && !file.type.includes('pdf')) { triggerToast(`Datei "${file.name}" ausgewählt. Nur Bilder werden visuell platziert.`); return; } const reader = new FileReader(); reader.onload = (e) => { const imageDataUrl = e.target.result; setCurrentImagePayload({ url: imageDataUrl, name: file.name }); setIsImageSelectModalOpen(true); }; reader.readAsDataURL(file); };
             const handleFileAdd = () => { fileInputRef.current?.click(); };
@@ -1960,7 +1994,7 @@ setShowValidityModal(true);
                 // 1) Bevorzugt: System-Druckdialog
                 if (typeof window.print === 'function') {
                     try {
-                        window.print();
+                        window.safePrint ? window.safePrint() : window.print();
                         return;
                     } catch (e) {
                         // fällt unten auf PDF-Fallback
@@ -2253,8 +2287,13 @@ const handleFinishOfferClick = () => {
                     canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
                     return;
                 }
-                // Normal: 1 Finger/Pen = Zeichnen (keine Default-Gesten), 2 Finger = Browser-Pan/Pinch erlauben.
-                canvas.style.touchAction = (count >= 2) ? 'pan-x pan-y pinch-zoom' : 'none';
+                // Wenn gerade gezeichnet wird (Pen), blocken wir Default-Gesten.
+                if (isDrawingRef?.current) {
+                    canvas.style.touchAction = 'none';
+                    return;
+                }
+                // Standard: Finger-Gesten (Scroll/Pinch) erlauben.
+                canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
             };
 
             const startDrawing = useCallback((e, ref, key) => {
@@ -2281,8 +2320,12 @@ const handleFinishOfferClick = () => {
                     return;
                 }
 
-                // 1 Finger / Pen: Zeichnen (Default-Gesten blocken)
-                e.preventDefault();
+                if (pointerType === 'touch' && st.count === 1) {
+                    // 1 Finger (Touch): NICHT zeichnen und NICHT preventDefault -> Finger bleibt Finger (Scroll möglich)
+                    isDrawingRef.current = false;
+                    currentStrokeRef.current = null;
+                    return;
+                }
 
                 const isPenInput = pointerType === 'pen';
                 const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen';
@@ -2297,6 +2340,10 @@ const handleFinishOfferClick = () => {
 
                 const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {};
                 if (cssX == null || cssY == null) return;
+
+                // Ab hier zeichnen wir wirklich -> Default-Gesten blocken
+                try { canvas.style.touchAction = 'none'; } catch(_) {}
+                e.preventDefault();
 
                 const ctx = canvas.getContext('2d');
                 const currentTool = toolRef.current;
@@ -2488,7 +2535,8 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
          .pdf-share-mode .print-page-header{display:flex !important;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#ffffff !important;border:1px solid #e2e8f0;border-radius:14px;margin:0 0 10px 0;}
          .pdf-share-mode .print-page-header .title{font-size:28px;font-weight:900;color:#0b1e42;letter-spacing:-0.02em;}
          .pdf-share-mode .print-page-header .print-header-right{display:flex;align-items:center;gap:10px;}
-         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;
+         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;}
+
          /* === A4-Hardlock (mm) nur für Share-PDF (entkoppelt vom Monitor) === */
          .pdf-share-mode .share-page,
          .pdf-share-mode .share-cover,
@@ -2510,7 +2558,30 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
            padding:0 !important;
            overflow:hidden !important;
          }
-         /* Spalten fix für Seite 2 & 3 */
+         
+         /* Full-Bleed Cover/Outro (Seite 1 & 4) */
+         .pdf-share-mode .share-page{padding:0 !important;margin:0 !important;border-radius:0 !important;}
+         .pdf-share-mode .share-cover,
+         .pdf-share-mode .share-outro{
+           border-radius:0 !important;
+           padding:0 !important;
+           margin:0 !important;
+           width:297mm !important;
+           max-width:297mm !important;
+           height:210mm !important;
+           min-height:210mm !important;
+           overflow:hidden !important;
+         }
+         .pdf-share-mode .share-cover-inner{
+           padding:28px !important;
+           max-width:none !important;
+         }
+         .pdf-share-mode .share-outro-grid{
+           padding:28px !important;
+           max-width:none !important;
+         }
+
+/* Spalten fix für Seite 2 & 3 */
          .pdf-share-mode .situation-view-wrapper{padding:10mm !important; gap:6mm !important;}
          .pdf-share-mode .print-offer-view{padding:10mm !important; gap:6mm !important;}
          .pdf-share-mode .situation-view-wrapper > div.flex-1,
@@ -2528,9 +2599,7 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
          }
 
          object-fit:contain;}`;
-
-
-
+    doc.head.appendChild(styleEl);
 
     const base = doc.createElement('base');
     base.href = window.location.href;
@@ -2588,6 +2657,17 @@ const wrapSharePage = (titleText, contentEl) => {
     return page;
 };
 
+// Cover/Outro: ohne Header (volle Fläche, wie echte Seite 1/4)
+const wrapSharePageNoHeader = (contentEl) => {
+    const page = doc.createElement('div');
+    page.className = 'share-page';
+    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:hidden;height:auto;padding:0;margin:0;';
+    page.appendChild(contentEl);
+    return page;
+};
+
+
+
 // Inhalt klonen + Print-Header im Clone entfernen (wir setzen den Header oben im Wrapper)
 const cloneSituation = sourceSituation.cloneNode(true);
 try { cloneSituation.classList.remove('hidden'); } catch(e){}
@@ -2615,6 +2695,12 @@ const makeCoverContent = () => {
     wrap.innerHTML = `
       <div class="share-cover-inner">
         <div class="share-cover-badge">EXKLUSIV FÜR SIE ERSTELLT</div>
+        <div style="margin-top:18px;display:flex;justify-content:center;">
+          <img src="${HIDA_LOGO_DATA_URI}" alt="HIDA" style="height:60px;width:auto;filter:drop-shadow(0 10px 20px rgba(0,0,0,.25));" />
+        </div>
+        <div style="margin-top:10px;font-weight:800;letter-spacing:0.22em;color:rgba(255,255,255,0.78);font-size:12px;">
+          SMART • SCHNELL • SICHER
+        </div>
         <div class="share-cover-title">
           <div>Ihr persönliches</div>
           <div class="share-cover-title-accent">Angebot</div>
@@ -2674,10 +2760,11 @@ const makeOutroContent = () => {
     return wrap;
 };
 
-// Cover als erste Seite
-const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
+// Cover als erste Seite (ohne Header)
+const coverPage = wrapSharePageNoHeader(makeCoverContent());
 stage.appendChild(coverPage);
 
+// Seite 2: Basis (mit Header)
 const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
 stage.appendChild(page1);
 
@@ -2691,8 +2778,8 @@ cloneOffer.style.overflow = 'visible';
 const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
 stage.appendChild(page2);
 
-// Outro als letzte Seite
-const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
+// Outro als letzte Seite (ohne Header)
+const outroPage = wrapSharePageNoHeader(makeOutroContent());
 stage.appendChild(outroPage);
 
     // Layout settle
@@ -2825,7 +2912,7 @@ const handlePDFShare = async () => {
         if (!window.html2pdf) {
             // CDN geblockt/offline -> sauberer Fallback
             triggerToast('PDF-Generator nicht verfügbar. Fallback: Drucken (System).');
-            setTimeout(() => { try { window.print(); } catch (e) { console.error(e); } }, 200);
+            try { (window.safePrint ? window.safePrint() : window.print()); } catch (e) { console.error(e); }
             return;
         }
 
@@ -2968,7 +3055,7 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                     <ImagePlacementModal isOpen={isImageSelectModalOpen} onClose={() => setIsImageSelectModalOpen(false)} onPlace={handleImagePlacement} imageName={currentImagePayload?.name || 'Datei'} />
                     <SignatureModal isOpen={showSignatureModal} onClose={() => setShowSignatureModal(false)} onSign={handleSignatureSave} />
 
-                    <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={handleOpenStats} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="📊 Statistik (passwortgeschützt)"><Icon d={ICONS.Lock} size={18}/></button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><div className="hida-logo-screen" aria-hidden="true">
+                    <header className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm z-30 relative h-16 w-full"><button onClick={handleOpenStats} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="📊 Statistik (passwortgeschützt)"><Icon d={ICONS.Lock} size={18}/></button><button onClick={toggleFullScreen} className="p-2 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors" title="Vollbild umschalten (wie F11)">{isFullscreen ? <Icon d={ICONS.Minimize} size={18}/> : <Icon d={ICONS.Maximize} size={18}/>}</button><h1 className="text-3xl font-black text-[#0b1e42] tracking-tighter truncate">{view === 'situation' ? 'Ihre Aktuelle Situation' : 'Ihr Persönliches Angebot'}</h1><div className="hida-logo-screen" aria-hidden="true">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 190">
     <rect width="100%" height="100%" fill="transparent"/>
     <text x="360" y="55" textAnchor="middle" fontSize="36" letterSpacing="6"
