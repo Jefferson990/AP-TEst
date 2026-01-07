@@ -589,12 +589,12 @@ html, body {
         min-width:1050px !important;
         max-width:1050px !important;
         margin:0 !important;
-        padding:0 20px 20px 20px !important;
+        padding:20px !important;
         gap:20px !important;
         transform:none !important;
         zoom:0.95 !important; /* leicht kleiner, damit rechts garantiert Platz bleibt */
         box-sizing:border-box !important;
-        overflow:visible !important;
+        overflow:hidden !important;
         page-break-after:always !important;
     }
 
@@ -605,7 +605,7 @@ html, body {
         width:750px !important;
         max-width:750px !important;
         box-sizing:border-box !important;
-        overflow:visible !important;
+        overflow:hidden !important;
     }
 
     /* Rechte Sidebar (Share) */
@@ -619,7 +619,7 @@ html, body {
         background:#f3f4f6 !important;
         padding:15px !important;
         border-radius:8px !important;
-        overflow:visible !important;
+        overflow:hidden !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -635,7 +635,7 @@ html, body {
         max-height:794px !important;
         margin:0 !important;
         page-break-after:always !important;
-        overflow:visible !important;
+        overflow:hidden !important;
     }
 
 }
@@ -706,6 +706,8 @@ html, body {
 .share-outro-amount{margin-top:6px;font-size:44px;font-weight:1000;color:#93c5fd;}
 .share-outro-voucher{margin-top:10px;padding:12px 10px;border:2px dashed rgba(255,255,255,0.35);border-radius:18px;font-family:monospace;font-size:16px;font-weight:1000;background:rgba(0,0,0,0.18);letter-spacing:0.12em;}
 
+    doc.head.appendChild(styleEl);
+
 
 /* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
 :root{
@@ -747,51 +749,6 @@ html, body {
 .pdf-share-mode body{
   overflow: visible !important;
 }
-
-
-
-/* ===========================
-   SHARE-PDF PATCH (nur Teilen)
-   - Print (Strg+P) bleibt unberührt
-   =========================== */
-
-/* Seite 2 (Angebot) im Share-PDF sauber auf neue Seite schieben */
-body.pdf-share-mode .print-offer-view{
-  page-break-before: always !important;
-  break-before: page !important;
-  padding-top: 30px !important;
-}
-
-/* Feedback/Outro im Share-PDF kompakter + direkt unter Kosten */
-body.pdf-share-mode .share-outro{
-  margin-top: 15px !important;
-  padding: 20px !important;
-  height: auto !important;
-  min-height: 0 !important;
-  page-break-after: avoid !important;
-  break-after: avoid !important;
-}
-
-/* Verhindert eine unnötige leere Schlussseite (letzte Share-Seite darf keinen erzwungenen Umbruch haben) */
-body.pdf-share-mode .share-page:last-child{
-  page-break-after: auto !important;
-  break-after: auto !important;
-}
-
-/* Normaler Druck bleibt unverändert */
-@media print{
-  body:not(.pdf-share-mode) .print-offer-view{
-    page-break-before: auto !important;
-    break-before: auto !important;
-  }
-}
-
-
-/* ===== SHARE PDF v18: NO AIR under header (nur Teilen) ===== */
-body.pdf-share-mode .share-page-header{ margin:0 0 0.5mm 0 !important; padding:0 0 1mm 0 !important; }
-body.pdf-share-mode .share-page-header + *{ margin-top:0 !important; padding-top:0 !important; }
-body.pdf-share-mode .situation-view-wrapper,
-body.pdf-share-mode .print-offer-view{ padding-top:0 !important; }
 
 </style>
 </head>
@@ -1260,8 +1217,9 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
         const ReferralModal = ({ isOpen, onClose, onPrint }) => {
             if (!isOpen) return null;
             const handlePrintAction = () => {
+                // Wichtig: ohne Timeout, damit Drucken auf Mobile nicht durch fehlende User-Activation blockiert wird
                 onClose();
-                setTimeout(() => onPrint(), 300);
+                onPrint();
             };
 
             return (
@@ -1985,7 +1943,49 @@ setShowValidityModal(true);
                 (typeof doPrint === 'function' ? doPrint : (() => window.print()))();
             }, [drawnStrokes, getDisplayText]);
 
-            const handlePrint = useCallback(() => { requestPrint(() => window.print()); }, [requestPrint]);
+            const downloadPdfBlob = (blob, filename) => {
+                try {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                } catch (e) { /* ignore */ }
+            };
+
+            const safePrint = useCallback(() => {
+                // 1) Bevorzugt: System-Druckdialog
+                if (typeof window.print === 'function') {
+                    try {
+                        window.print();
+                        return;
+                    } catch (e) {
+                        // fällt unten auf PDF-Fallback
+                    }
+                }
+
+                // 2) Fallback: PDF im Print-Look erzeugen und speichern (wenn Drucken vom Browser blockiert wird)
+                (async () => {
+                    try {
+                        if (!window.html2pdf) {
+                            triggerToast('Drucken nicht verfügbar (PDF-Generator fehlt).');
+                            return;
+                        }
+                        triggerToast('Druck-Fallback: PDF wird erstellt…');
+                        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders);
+                        const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
+                        downloadPdfBlob(blob, filename);
+                    } catch (e) {
+                        console.warn('safePrint fallback failed:', e);
+                        triggerToast('Drucken/Export nicht möglich.');
+                    }
+                })();
+            }, [triggerToast]);
+
+            const handlePrint = useCallback(() => { requestPrint(() => safePrint()); }, [requestPrint, safePrint]);
 
             
             const getAgentDisplayNameForUpload = () => {
@@ -2044,7 +2044,7 @@ const handleFinishOfferClick = () => {
                     triggerToast("Angebot wird gedruckt (Status: Offen)");
                     // Angebot: im Hintergrund als PDF (Print-Look) nach OneDrive (Power Automate) hochladen
                     backgroundAutoUpload({ type: 'angebot', triggerToast, ensurePrintHeaders, getAgent: getAgentDisplayNameForUpload, getDsl: getDslFlagForUpload });
-                    setTimeout(() => handlePrint(), 500);
+                    handlePrint();
                 }
             };
             
@@ -2471,93 +2471,48 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
     const styleEl = doc.createElement('style');
     styleEl.textContent =
         stylesPrintAll + "\n\n" +
-        `html,body{background:#fff;margin:0;padding:0;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;overflow:visible;height:auto;}
+        `html,body{background:#fff;margin:0;padding:0;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;overflow:hidden;height:auto;}
          html{height:auto;}
          /* Share-Modus: Header sichtbar, keine doppelten Links-Offsets innerhalb der Views */
-         .pdf-share-mode .print-page-header{display:none !important;}
+         .pdf-share-mode .print-page-header{display:flex !important;}
          /* Share: eigene Seitensteuerung (verhindert Leer-Seiten durch Print-Pagebreaks) */
          .pdf-share-mode .situation-view-wrapper{break-after:auto !important; page-break-after:auto !important;}
          .pdf-share-mode .print-offer-view{break-after:auto !important; page-break-after:auto !important;}
-         .pdf-share-mode .share-page{break-after:page; page-break-after:always;width:297mm !important;max-width:297mm !important;height:210mm !important;max-height:210mm !important;overflow:visible !important;box-sizing:border-box !important;display:flex !important;flex-direction:column !important;background:#ffffff !important;}
-         .pdf-share-mode .share-page > .share-page-header{flex:0 0 auto !important;}
-         /* Neutralisiere alte Share-Patches (dürfen in unserem Wrapper NICHT extra umbrechen/absetzen) */
-         .pdf-share-mode .situation-view-wrapper{page-break-before:auto !important; break-before:auto !important; padding-top:0 !important; margin-top:0 !important;}
-         .pdf-share-mode .print-offer-view{page-break-before:auto !important; break-before:auto !important; padding-top:0 !important; margin-top:0 !important;}
-
-         /* Share-Header noch kompakter (keine "Luft" oben) */
-         .pdf-share-mode .share-page-header{margin:0 0 0.5mm 0 !important;padding:0 0 1mm 0 !important;border-bottom:2px solid #0050aa !important;}
-         .pdf-share-mode .share-page-header .title{font-size:16px !important;line-height:1.1 !important;}
-
-         /* Angebot: Kosten + Abschluss IMMER sichtbar und kompakt */
-         .pdf-share-mode .print-offer-view .cost-overview-print{display:block !important;visibility:visible !important;opacity:1 !important;margin-top:2.5mm !important;}
-         .pdf-share-mode .print-offer-view .offer-print-grid{margin-top:0 !important; gap:10px !important;}
-         .pdf-share-mode .print-offer-view .offer-canvas-container{min-height:520px !important;}
-         .pdf-share-mode .print-offer-view .share-outro{height:auto !important; min-height:0 !important; padding:0 !important; margin-top:3mm !important; page-break-inside:avoid !important; break-inside:avoid !important;}
-         .pdf-share-mode .print-offer-view .share-outro-grid{gap:12px !important;}
-         .pdf-share-mode .print-offer-view .share-outro-card{padding:14px !important;}
-
-         .pdf-share-mode .share-page > .situation-view-wrapper,
-         .pdf-share-mode .share-page > .print-offer-view,
-         .pdf-share-mode .share-page > .share-cover,
-         .pdf-share-mode .share-page > .share-outro,
-         .pdf-share-mode .share-page > .share-feedback-page{flex:1 1 auto !important;min-height:0 !important;overflow:visible !important;}
-         /* Share: keine Luft oben in Seite 2/3 */
-         .pdf-share-mode .situation-view-wrapper,
-         .pdf-share-mode .print-offer-view{margin-top:0 !important;padding-top:0 !important;}
-         /* Header ultra-kompakt + direkt ohne "Luft" in den Inhalt */
-         .pdf-share-mode .share-page-header{margin:0 0 0.5mm 0 !important;padding:0 0 0.5mm 0 !important;}
-         .pdf-share-mode .share-page-header + *{margin-top:0 !important;padding-top:0 !important;}
-         .pdf-share-mode .situation-view-wrapper > div.flex-1.flex.items-stretch{margin-top:0 !important;padding-top:0 !important;}
-
-         /* Inhaltsseiten: etwas kompakter, damit nichts unten rausläuft */
-         .pdf-share-mode .situation-view-wrapper{padding:0 !important; gap:4mm !important; zoom:0.96 !important;}
-         .pdf-share-mode .print-offer-view{padding:0 !important; gap:3mm !important; zoom:0.80 !important;}
-         /* Cover/Outro vollflächig ohne extra Padding */
-         .pdf-share-mode .share-cover,.pdf-share-mode .share-outro,.pdf-share-mode .share-feedback-page{padding:0 !important;}
-
+         .pdf-share-mode .share-page{break-after:page; page-break-after:always;}
          .pdf-share-mode .share-page:last-child{break-after:auto !important; page-break-after:auto !important;}
-         .pdf-share-mode .situation-view-wrapper{padding:0 !important; margin:0 !important;}
-         .pdf-share-mode .print-offer-view{padding:0 !important; margin:0 !important;}
+         .pdf-share-mode .situation-view-wrapper{padding-left: 0px !important; padding-top:0 !important; margin-left:0 !important;}
+         .pdf-share-mode .print-offer-view{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
          .pdf-share-mode body{background:#ffffff !important;}
          /* Share: Fallback-Header-Styling (falls Print-CSS nicht sauber kopiert wird) */
          .pdf-share-mode header{display:none !important;}
-         /* Im Share-PDF niemals den normalen Print-Header erzwingen */
-         .pdf-share-mode .print-page-header{display:none !important;}
+         .pdf-share-mode .print-page-header{display:flex !important;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#ffffff !important;border:1px solid #e2e8f0;border-radius:14px;margin:0 0 10px 0;}
          .pdf-share-mode .print-page-header .title{font-size:28px;font-weight:900;color:#0b1e42;letter-spacing:-0.02em;}
          .pdf-share-mode .print-page-header .print-header-right{display:flex;align-items:center;gap:10px;}
-         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;object-fit:contain;}
-         /* === A4-Hardlock (mm) nur für die PAGE-Box, nicht für den Inhalt === */
-         .pdf-share-mode .share-page{
+         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;
+         /* === A4-Hardlock (mm) nur für Share-PDF (entkoppelt vom Monitor) === */
+         .pdf-share-mode .share-page,
+         .pdf-share-mode .share-cover,
+         .pdf-share-mode .share-feedback-page,
+         .pdf-share-mode .situation-view-wrapper,
+         .pdf-share-mode .print-offer-view{
            width:297mm !important;
            min-width:297mm !important;
            max-width:297mm !important;
            height:210mm !important;
            min-height:210mm !important;
-           max-height:210mm !important;
            box-sizing:border-box !important;
-           overflow:visible !important;
-         }
-         .pdf-share-mode .share-cover,
-         .pdf-share-mode .share-feedback-page,
-         .pdf-share-mode .situation-view-wrapper,
-         .pdf-share-mode .print-offer-view,
-         .pdf-share-mode .share-outro{
-           width:297mm !important;
-           min-width:297mm !important;
-           max-width:297mm !important;
-           height:auto !important;
-           min-height:0 !important;
-           box-sizing:border-box !important;
-           overflow:visible !important;
+           overflow:hidden !important;
          }
          .pdf-share-mode .share-pdf-container{
            width:297mm !important;
            max-width:297mm !important;
            margin:0 !important;
            padding:0 !important;
-           overflow:visible !important;
+           overflow:hidden !important;
          }
          /* Spalten fix für Seite 2 & 3 */
+         .pdf-share-mode .situation-view-wrapper{padding:10mm !important; gap:6mm !important;}
+         .pdf-share-mode .print-offer-view{padding:10mm !important; gap:6mm !important;}
          .pdf-share-mode .situation-view-wrapper > div.flex-1,
          .pdf-share-mode .print-offer-view > div.flex-1{
            flex:0 0 190mm !important;
@@ -2570,33 +2525,11 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
            flex:0 0 77mm !important;
            width:77mm !important;
            max-width:77mm !important;
-         }`;
+         }
+
+         object-fit:contain;}`;
 
 
-
-
-
-        doc.head.appendChild(styleEl);
-        // Share-PDF: Top-Luft entfernen (nur Iframe), PRINT bleibt unangetastet
-        // Share-PDF: Top-Luft entfernen (nur Iframe), PRINT bleibt unangetastet
-        const shareFixStyle = doc.createElement('style');
-        shareFixStyle.textContent = `
-            /* Share-Header (nur Iframe) super kompakt */
-            .share-page-header{margin:0 0 4px 0 !important;padding:0 0 4px 0 !important;border-radius:0 !important;}
-            .share-page-header .title{font-size:20px !important; line-height:1.1 !important; margin:0 !important;}
-            /* entferne "Screen-Paddings" in den Views */
-            .pdf-share-mode .situation-view-wrapper{margin:0 !important;padding:0 !important;}
-            .pdf-share-mode .situation-view-wrapper > div.flex-1.flex.items-stretch{padding-top:0 !important;}
-            .pdf-share-mode .print-offer-view{margin:0 !important;padding:0 !important;}
-            .pdf-share-mode .print-offer-view > div.w-full{padding-top:0 !important;margin:0 !important;}
-            /* remove top air on situation content */
-            .pdf-share-mode .situation-view-wrapper > *{margin-top:0 !important;}
-            .pdf-share-mode .situation-view-wrapper .rounded-2xl{margin-top:0 !important;}
-            /* allow full document height for multiple pages */
-            html,body{margin:0 !important;padding:0 !important;}
-        
-        `;
-        doc.head.appendChild(shareFixStyle);
 
 
     const base = doc.createElement('base');
@@ -2608,14 +2541,14 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
 // Container = exakte Seitenbreite (keine Innen-Paddings/Offsets)
 container.style.cssText =
     `background:#fff;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;margin:0 auto;` +
-    `box-sizing:border-box;padding:0;overflow:visible;height:auto;`;
+    `box-sizing:border-box;padding:0;overflow:hidden;height:auto;`;
 
 // Stage = 1:1 Breite, zentriert (kein Scale/Shift)
 const stage = doc.createElement('div');
 stage.className = 'share-safe-stage';
 stage.style.cssText =
     `width:${SHARE_PAGE_WIDTH_PX}px;max-width:${SHARE_PAGE_WIDTH_PX}px;margin:0 auto;` +
-    `height:auto;overflow:visible;` +
+    `height:auto;overflow:hidden;` +
     `transform:scale(${SHARE_SAFE_SCALE});transform-origin:top left;`;
 
 
@@ -2628,32 +2561,34 @@ container.appendChild(stage);
     // --- Share: Seiten-Wrapping + Header im Iframe (robust für html2pdf) ---
 const makeShareHeader = (titleText) => {
     const h = doc.createElement('div');
-    h.className = 'share-page-header';
-    h.style.cssText =
-        'display:flex;justify-content:flex-start;align-items:flex-end;gap:10px;' +
-        'width:100%;box-sizing:border-box;margin:0 0 1mm 0;padding:0 0 2mm 0;' +
-        'border:none;border-bottom:2px solid #0050aa;border-radius:0;background:#fff;';
+    h.className = 'share-page-header print-page-header';
     const t = doc.createElement('div');
     t.className = 'title';
     t.textContent = titleText;
-    t.style.cssText = 'font-size:20px;font-weight:900;color:#0050aa;letter-spacing:-0.01em;margin:0;';
+
+    const right = doc.createElement('div');
+    right.className = 'print-header-right';
+    const img = doc.createElement('img');
+    img.src = HIDA_LOGO_DATA_URI;
+    img.alt = 'HIDA';
+    img.className = 'hida-logo-print';
+    right.appendChild(img);
+
     h.appendChild(t);
+    h.appendChild(right);
     return h;
 };
 
-const wrapSharePage = ({ headerText=null, contentEl }) => {
+const wrapSharePage = (titleText, contentEl) => {
     const page = doc.createElement('div');
     page.className = 'share-page';
-    page.style.cssText =
-        'width:297mm;max-width:297mm;height:210mm;max-height:210mm;' +
-        'box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;background:#fff;padding:0;margin:0;';
-    if (headerText) page.appendChild(makeShareHeader(headerText));
-    try{ contentEl.style.flex='1 1 auto'; contentEl.style.minHeight='0'; contentEl.style.overflow='visible'; }catch(e){}
+    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:hidden;height:auto;';
+    page.appendChild(makeShareHeader(titleText));
     page.appendChild(contentEl);
     return page;
 };
 
-// Inhalt klonen + Print-Header im Clone entfernen (wir setzen NUR optional den Share-Header oben im Wrapper)
+// Inhalt klonen + Print-Header im Clone entfernen (wir setzen den Header oben im Wrapper)
 const cloneSituation = sourceSituation.cloneNode(true);
 try { cloneSituation.classList.remove('hidden'); } catch(e){}
 cloneSituation.querySelectorAll('.print-page-header').forEach(n => n.remove());
@@ -2740,10 +2675,10 @@ const makeOutroContent = () => {
 };
 
 // Cover als erste Seite
-const coverPage = wrapSharePage({ headerText: null, contentEl: makeCoverContent() });
+const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
 stage.appendChild(coverPage);
 
-const page1 = wrapSharePage({ headerText: 'Ihre Aktuelle Situation', contentEl: cloneSituation });
+const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
 stage.appendChild(page1);
 
 const cloneOffer = sourceOffer.cloneNode(true);
@@ -2753,41 +2688,14 @@ cloneOffer.style.display = 'block';
 cloneOffer.style.height = 'auto';
 cloneOffer.style.overflow = 'visible';
 
-const page2 = wrapSharePage({ headerText: 'Ihr Persönliches Angebot', contentEl: cloneOffer });
+const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
 stage.appendChild(page2);
 
-// Separate Abschluss/Empfehlung-Seite (ohne Header)
-const outroPage = wrapSharePage({ headerText: null, contentEl: makeOutroContent() });
+// Outro als letzte Seite
+const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
 stage.appendChild(outroPage);
 
-
-// --- Auto-Fit: wenn Inhalt höher ist als A4-Seite, proportional verkleinern (verhindert abgeschnittene Kosten/Abschluss) ---
-const fitContentToPage = (pageEl) => {
-    try{
-        const header = pageEl.querySelector('.share-page-header');
-        const content = header ? header.nextElementSibling : pageEl.firstElementChild;
-        if(!content) return;
-        // reset any previous transforms
-        content.style.transform='';
-        content.style.transformOrigin='top left';
-        content.style.width='100%';
-        const pageH = pageEl.getBoundingClientRect().height;
-        const headerH = header ? header.getBoundingClientRect().height : 0;
-        const avail = pageH - headerH;
-        const contentH = Math.max(content.scrollHeight, content.getBoundingClientRect().height);
-        if(contentH > avail + 2){
-            // Im Share-PDF lieber stärker schrumpfen als unten abzuschneiden
-            const s = Math.max(0.65, Math.min(1, avail / contentH));
-            content.style.transform = `scale(${s})`;
-            content.style.width = `${100/s}%`;
-        }
-    }catch(e){}
-};
-
-// Fit nur für Seiten mit Header (Situation/Angebot), Cover bleibt original
-try{ [page1,page2].forEach(fitContentToPage); }catch(e){}
-
-// Layout settle
+    // Layout settle
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     // A4 Landscape in points
@@ -2826,8 +2734,7 @@ try{ [page1,page2].forEach(fitContentToPage); }catch(e){}
                     body.style.width = '297mm';
                     body.style.margin = '0';
                     body.style.padding = '0';
-                    // Wichtig: NICHT clippen, sonst fehlen Seiten/Bottom-Content
-                    body.style.overflow = 'visible';
+                    body.style.overflow = 'hidden';
                     body.classList.add('pdf-share-mode');
 
                     const c = clonedDoc.querySelector('.share-pdf-container');
@@ -2836,7 +2743,7 @@ try{ [page1,page2].forEach(fitContentToPage); }catch(e){}
                         c.style.maxWidth = '297mm';
                         c.style.margin = '0';
                         c.style.padding = '0';
-                        c.style.overflow = 'visible';
+                        c.style.overflow = 'hidden';
                     }
                 }catch(e){}
             }
@@ -2869,7 +2776,7 @@ const blobToBase64 = (blob) => new Promise((resolve, reject) => {
 // Sendet PDF + Metadaten an Power Automate (Flow speichert in OneDrive)
 const uploadPdfToPowerAutomate = async ({ blob, type, dsl, agent, dateISO, triggerToast }) => {
     if (!PA_UPLOAD_URL || PA_UPLOAD_URL.includes('PASTE_POWER_AUTOMATE_FLOW_URL_HERE')) {
-        // Noch nicht konfiguriert -> komplett leise überspringen (kein Toast mehr)
+        // Noch nicht konfiguriert -> leise überspringen (Druck/Teilen soll trotzdem funktionieren)
         return { ok:false, skipped:true };
     }
     const pdfBase64 = await blobToBase64(blob);
@@ -3049,7 +2956,7 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                             setShowValidityModal(false);
                             const fn = pendingPrintRef.current;
                             pendingPrintRef.current = null;
-                            setTimeout(() => { (fn || (() => window.print()))(); }, 50);
+                            (fn || (() => window.print()))();
                         }}
                     />
 
@@ -3187,27 +3094,30 @@ const file = new File([blob], filename, { type: 'application/pdf' });
 
             // --- PRINT: pro Seite einen eigenen Header einfügen (ohne Screen-Layout zu ändern) ---
             const ensurePrintHeaders = () => {
-                document.querySelectorAll('.print-page-header').forEach(el => el.remove());
+    // Verhindert doppelte Header
+    document.querySelectorAll('.print-page-header').forEach(el => el.remove());
 
-                const mkHeader = (titleText) => {
-                    const h = document.createElement('div');
-                    h.className = 'print-page-header';
-                    h.style = "display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:2px solid #0050aa; margin-bottom:15px; padding-bottom:10px; box-sizing:border-box;";
-                    h.innerHTML = `
-                        <div style="font-size:22px; font-weight:800; color:#0050aa;">${titleText}</div>
-                        <img src="${HIDA_LOGO_DATA_URI}" style="height:45px;" />
-                    `;
-                    return h;
-                };
+    const mkHeader = (titleText) => {
+        const h = document.createElement('div');
+        h.className = 'print-page-header';
+        // Professionelles Dunkelblau #0b1e42 und sauberes Layout
+        h.innerHTML = `
+            <div class="title" style="color:#0b1e42;">${titleText}</div>
+            <div class="print-header-right">
+                <img src="${HIDA_LOGO_DATA_URI}" class="hida-logo-print" style="height:34px;" />
+            </div>
+        `;
+        return h;
+    };
 
-                // Seite 2 Header (Aktuelle Situation)
-                const sit = document.querySelector('.situation-view-wrapper');
-                if (sit) sit.prepend(mkHeader('Ihre Aktuelle Situation & Stammdaten'));
+    // Seite 2 Header - Umbenannt auf Wunsch
+    const sit = document.querySelector('.situation-view-wrapper');
+    if (sit) sit.prepend(mkHeader('Ihre Aktuelle Situation'));
 
-                // Seite 3 Header (Angebot)
-                const off = document.querySelector('.print-offer-view');
-                if (off) off.prepend(mkHeader('Ihr Persönliches Angebot & Preise'));
-            };
+    // Seite 3 Header - Umbenannt auf Wunsch
+    const off = document.querySelector('.print-offer-view');
+    if (off) off.prepend(mkHeader('Ihr Persönliches Angebot'));
+};
 
             window.addEventListener('beforeprint', ensurePrintHeaders);
             window.addEventListener('afterprint', () => {
