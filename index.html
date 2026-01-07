@@ -241,11 +241,13 @@ html, body {
         flex-direction: row !important;
         flex-wrap: wrap !important;
         align-items: stretch !important;
+        gap: 0 !important;
         visibility: visible !important;
         opacity: 1 !important;
         position: relative !important;
 
-        width: 100% !important;
+        width: 1060px !important;
+        max-width: 1060px !important;
         height: auto !important;
         overflow: visible !important;
 
@@ -271,23 +273,24 @@ html, body {
 
     /* Main (Links+Mitte) = 80% */
     .situation-view-wrapper > div.flex-1.flex.items-stretch {
-        flex: 0 0 75% !important;
-        max-width: 75% !important;
-        width: 75% !important;
+        flex: 0 0 760px !important;
+        max-width: 760px !important;
+        width: 760px !important;
         order: 1 !important;
     }
 
     /* Rechte Sidebar = 20% (im Print sichtbar) */
     .situation-view-wrapper > aside {
         display: flex !important;
-        flex: 0 0 25% !important;
-        max-width: 25% !important;
-        width: 25% !important;
+        flex: 0 0 280px !important;
+        max-width: 280px !important;
+        width: 280px !important;
         min-width: 0 !important;
         height: auto !important;
         overflow: visible !important;
         order: 2 !important;
     }
+
 
 
     /* Print: Stammdaten/Sidebar etwas dünner, damit alles auf 2 Seiten passt */
@@ -434,6 +437,19 @@ html, body {
     }
 
     /* ---- PRINT: Seite 1 Breitensteuerung (Links/Mitte/Rechts = 30/50/20) ---- */
+
+    /* Optional: inner columns slightly smaller for safety (34/64) */
+    .situation-view-wrapper [class*="w-[30%]"]{
+        width: 34% !important;
+        flex: 0 0 34% !important;
+        max-width: 34% !important;
+    }
+    .situation-view-wrapper [class*="w-[70%]"]{
+        width: 64% !important;
+        flex: 0 0 64% !important;
+        max-width: 64% !important;
+    }
+
     /* Da Main (Links+Mitte) im Print 80% hat, müssen die Zellbreiten 37.5% / 62.5% sein */
     .situation-view-wrapper [class*="w-[30%]"]{
         width: 35% !important;
@@ -633,7 +649,7 @@ html, body {
 
 /* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
 :root{
-  --SHARE_OFFSET_X: 90px; /* + = rechts | - = links */
+  --SHARE_OFFSET_X: 0px; /* + = rechts | - = links */
 }
 
 .share-cover,
@@ -645,7 +661,7 @@ html, body {
 
 /* ===== SHARE OFFSET OVERRIDE (wirkt beim Teilen / PDF-Share) ===== */
 :root{
-  --SHARE_OFFSET_X: 40px; /* + = rechts | - = links */
+  --SHARE_OFFSET_X:  0px; /* + = rechts | - = links */
 }
 /* In Share-PDF werden Seiten als .share-page gerendert – daher hier verschieben */
 .pdf-share-mode .share-page,
@@ -655,6 +671,21 @@ html, body {
   margin-right: 0 !important;
   transform: translateX(var(--SHARE_OFFSET_X)) !important;
   transform-origin: top left;
+}
+
+
+/* ===== SHARE PDF SAFETY (no right-cut) ===== */
+.pdf-share-mode :root{ --SHARE_OFFSET_X: 0px !important; }
+.pdf-share-mode .share-page,
+.pdf-share-mode .share-cover,
+.pdf-share-mode .share-outro{
+  transform: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+.pdf-share-mode html,
+.pdf-share-mode body{
+  overflow: visible !important;
 }
 
 </style>
@@ -2300,9 +2331,10 @@ const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
 
     // --- SHARE HARD-LOCK (v50_52): exakt links/rechts bündig, kein Cut ---
 // Ziel: Share-PDF soll exakt die Inhaltsbreite nutzen (keine Offsets, kein Extra-Padding, keine Skalierung)
-const SHARE_PAGE_WIDTH_PX  = 1123; // A4 Landscape @ ~96dpi
+const SHARE_PAGE_WIDTH_PX  = 1080; // Share-safe width (prevents right-edge cut)
 const SHARE_PAGE_HEIGHT_PX = 794;
 const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
+const SHARE_SAFE_SCALE    = 0.975; // extra safety to prevent any right-edge clipping
 
     try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){}
 
@@ -2334,7 +2366,7 @@ const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
     const styleEl = doc.createElement('style');
     styleEl.textContent =
         stylesPrintAll + "\n\n" +
-        `html,body{background:#fff;margin:0;padding:0;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;overflow:visible;height:auto;}
+        `html,body{background:#fff;margin:0;padding:0;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;overflow:hidden;height:auto;}
          html{height:auto;}
          /* Share-Modus: Header sichtbar, keine doppelten Links-Offsets innerhalb der Views */
          .pdf-share-mode .print-page-header{display:flex !important;}
@@ -2343,7 +2375,7 @@ const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
          .pdf-share-mode .print-offer-view{break-after:auto !important; page-break-after:auto !important;}
          .pdf-share-mode .share-page{break-after:page; page-break-after:always;}
          .pdf-share-mode .share-page:last-child{break-after:auto !important; page-break-after:auto !important;}
-         .pdf-share-mode .situation-view-wrapper{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
+         .pdf-share-mode .situation-view-wrapper{padding-left: 0px !important; padding-top:0 !important; margin-left:0 !important;}
          .pdf-share-mode .print-offer-view{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
          .pdf-share-mode body{background:#ffffff !important;}
          /* Share: Fallback-Header-Styling (falls Print-CSS nicht sauber kopiert wird) */
@@ -2365,14 +2397,16 @@ const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
 // Container = exakte Seitenbreite (keine Innen-Paddings/Offsets)
 container.style.cssText =
     `background:#fff;width:${SHARE_DOC_WIDTH_PX}px;max-width:${SHARE_DOC_WIDTH_PX}px;margin:0 auto;` +
-    `box-sizing:border-box;padding:0;overflow:visible;height:auto;`;
+    `box-sizing:border-box;padding:0;overflow:hidden;height:auto;`;
 
 // Stage = 1:1 Breite, zentriert (kein Scale/Shift)
 const stage = doc.createElement('div');
 stage.className = 'share-safe-stage';
 stage.style.cssText =
     `width:${SHARE_PAGE_WIDTH_PX}px;max-width:${SHARE_PAGE_WIDTH_PX}px;margin:0 auto;` +
-    `height:auto;overflow:visible;`;
+    `height:auto;overflow:hidden;` +
+    `transform:scale(${SHARE_SAFE_SCALE});transform-origin:top left;`;
+
 
 doc.body.appendChild(container);
 container.appendChild(stage);
@@ -2404,7 +2438,7 @@ const makeShareHeader = (titleText) => {
 const wrapSharePage = (titleText, contentEl) => {
     const page = doc.createElement('div');
     page.className = 'share-page';
-    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:visible;height:auto;';
+    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:hidden;height:auto;';
     page.appendChild(makeShareHeader(titleText));
     page.appendChild(contentEl);
     return page;
@@ -2530,23 +2564,33 @@ stage.appendChild(outroPage);
     ) + 80;
 
     const opt = {
-        // ✅ echte PDF-Zentrierung: jsPDF-Margins (mm)
-        margin:       0, // top, left, bottom, right
-        filename:     `Angebot_${new Date().toISOString().slice(0,10)}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  {
-            scale: 3,
-            windowWidth: SHARE_DOC_WIDTH_PX,
-            windowHeight: SHARE_SCROLL_H,
+        margin: [10, 10, 10, 10],
+        filename: `Angebot_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: 2,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
+            width: 1080,
+            windowWidth: 1080,
             scrollX: 0,
-            scrollY: 0
+            scrollY: 0,
+            x: 0,
+            onclone: function(clonedDoc){
+                try{
+                    // lock cloned viewport so html2canvas never uses the real browser width
+                    clonedDoc.documentElement.style.width = (SHARE_DOC_WIDTH_PX + 'px');
+                    clonedDoc.body.style.width = (SHARE_DOC_WIDTH_PX + 'px');
+                    clonedDoc.body.style.maxWidth = (SHARE_DOC_WIDTH_PX + 'px');
+                    clonedDoc.body.style.margin = '0';
+                    clonedDoc.body.style.padding = '0';
+                    clonedDoc.body.style.overflow = 'hidden';
+                }catch(e){}
+            }
         },
-        // A4 quer in mm (robust in Adobe/Edge/Samsung)
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak:    { mode: ['css','legacy'] }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['css','legacy'] }
     };
     try {
         const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
@@ -2887,7 +2931,7 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                         {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button><button onClick={() => setGestureMode(v => !v)} className={`p-2 rounded-md transition-colors ${gestureMode ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title={gestureMode ? 'Zoom/Pan aktiv (Tippen zum Deaktivieren)' : 'Zoom/Pan (2 Finger)'}><Icon d={ICONS.ZoomIn} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
-                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={18}/></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
+                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
         }
 
             // --- PRINT: pro Seite einen eigenen Header einfügen (ohne Screen-Layout zu ändern) ---
