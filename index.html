@@ -485,6 +485,29 @@ html, body {
         padding: 10px 12px !important;
         box-shadow: none !important;
     }
+
+    /* Print-Safety: Kostenfelder (1./2. Jahr) bleiben immer nebeneinander -> verhindert zusätzliche Druck-Seite */
+    @media print{
+        .print-offer-view .cost-grid-years {
+    display: grid !important;
+    /* Wir nutzen 1fr statt minmax, damit die Spalten flexibel schrumpfen */
+    grid-template-columns: repeat(3, 1fr) !important; 
+    /* Reduzierter Abstand, damit alles unter die Mine passt */
+    gap: 6px !important; 
+}
+
+.print-offer-view .cost-grid-years > * {
+    min-width: 0 !important;
+    width: 100% !important;
+}
+
+/* Sicherstellen, dass die Inputs zentriert bleiben und nicht ausbrechen */
+.offer-cost-input {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 0 !important;
+}
+    }
     .print-offer-view .cost-overview-print h3{
         margin-bottom: 6px !important;
         font-size: 16px !important;
@@ -600,6 +623,11 @@ html, body {
         page-break-after:always !important;
     }
 
+    body.pdf-share-mode .situation-view-wrapper > aside > div:first-of-type {
+        margin-top: 70px !important;
+    }
+
+
     /* Linke Spalte (Share) */
     body.pdf-share-mode .situation-view-wrapper > div.flex-1,
     body.pdf-share-mode .print-offer-view > div.flex-1{
@@ -661,6 +689,7 @@ html, body {
     
     /* --- PATCH v50_23: Zentrierung + digitale Sichtbarkeit --- */
     .offer-cost-input{
+        width:100% !important;
         padding-top:0 !important;
         padding-bottom:0 !important;
         line-height:3rem !important; /* h-12 */
@@ -672,7 +701,35 @@ html, body {
         line-height:3rem !important; /* h-12 */
     }
 
+    /* --- FIX: Kosten-Grid bleibt "on point" (statische 3-Spalten-Struktur, Screen + Share) --- */
+.cost-grid-years{
+    display: grid !important;
+    width: 100% !important;
+    grid-template-columns: repeat(3, 1fr) !important; /* 3 Spalten IMMER vorhanden */
+    gap: 1rem !important;
+    transition: none !important;
+}
 
+/* 2. Jahr: Container bleibt im Layout, wird nur unsichtbar geschaltet */
+.year-2-container{
+    transition: opacity 0.2s ease-in-out;
+}
+.year-2-container.hidden-layer{
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    /* KEIN display:none -> Grid darf nicht kollabieren */
+}
+
+/* nichts darf ausbrechen -> verhindert Versatz */
+.cost-grid-years > *{
+    min-width: 0 !important;
+    width: 100% !important;
+}
+.offer-cost-input{
+    width: 100% !important;
+    text-align: center !important;
+}
 
 /* ===== SHARE COVER/OUTRO STYLES (nur im Iframe Share-PDF) ===== */
 .share-cover, .share-outro{
@@ -1072,8 +1129,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
                 Offer3Title: '3. TV & Wi-Fi',
                 CostHeader: 'Cost Overview & Conclusion',
                 CostEinmalig: 'ONE-TIME (€)',
-                CostMonatlich1: 'MONTHLY IN 1ST YEAR (€)', CostMonatlich: 'MONTHLY (€)',
-                CostMonatlich2: 'MONTHLY IN 2ND YEAR (€)',
+                CostMonatlich1: 'MONTHLY IN 1ST YEAR (€)', CostMonatlich: 'MONTHLY (€)', CostMonatlich2: 'MONTHLY IN 2ND YEAR (€)',
                 AgentLabel: 'PERSONAL AGENT',
                 DateLabel: 'DATE',
                 Kundenname_Label: 'Customer Name',
@@ -1182,7 +1238,23 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             return () => window.removeEventListener('resize', resizeCanvas);
         }, [isOpen]);
             if (!isOpen) return null;
-            return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.Signature} size={24} className="text-green-600"/> Kundenunterschrift</h3><p className="text-sm text-slate-600 mb-1">Bitte unterschreiben Sie mit Ihrem Finger oder Stylus in der dafür vorgesehenen Fläche.</p><button type="button" onClick={handlePaperSignature} className="text-xs text-slate-500 hover:text-slate-700 underline decoration-dotted mb-3">Papier-Unterschrift – Kunde unterschreibt klassisch auf Papier und wir machen weiter</button><div className="signature-canvas-container relative" style={{ touchAction: 'none' }}><canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair drawing-canvas" onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onPointerLeave={stopDrawing}/></div><div className="flex justify-between items-center mt-4"><button onClick={clearCanvas} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" disabled={!hasSigned}><Icon d={ICONS.Trash} size={16}/> Löschen</button><div className="flex gap-2"><button onClick={() => onClose(true)} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${hasSigned ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!hasSigned}>Übernehmen <Icon d={ICONS.CheckCircle} size={16}/></button></div></div></div></div>);
+            return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.Signature} size={24} className="text-green-600"/> Kundenunterschrift</h3><p className="text-sm text-slate-600 mb-1">Bitte unterschreiben Sie mit Ihrem Finger oder Stylus in der dafür vorgesehenen Fläche.</p><button type="button" onClick={handlePaperSignature} className="text-xs text-slate-500 hover:text-slate-700 underline decoration-dotted mb-3">Papier-Unterschrift – Kunde unterschreibt klassisch auf Papier und wir machen weiter</button><div className="relative aspect-[3/2] bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl overflow-hidden mb-6 group">
+    <canvas
+        ref={canvasRef}
+        onPointerDown={startDrawing}
+        onPointerMove={draw}
+        onPointerUp={stopDrawing}
+        onPointerLeave={stopDrawing}
+        style={{ touchAction: 'none', cursor: 'crosshair' }}
+        className="absolute inset-0 w-full h-full"
+    />
+    {!hasSigned && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-400">
+            <Icon d={ICONS.Pen} size={40} className="mb-2 opacity-20" />
+            <p className="text-sm font-medium">Hier mit Stylus oder Finger unterschreiben</p>
+        </div>
+    )}
+</div><div className="flex justify-between items-center mt-4"><button onClick={clearCanvas} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" disabled={!hasSigned}><Icon d={ICONS.Trash} size={16}/> Löschen</button><div className="flex gap-2"><button onClick={() => onClose(true)} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${hasSigned ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!hasSigned}>Übernehmen <Icon d={ICONS.CheckCircle} size={16}/></button></div></div></div></div>);
         };
 
         const FinishTypeModal = ({ isOpen, onClose, onSelect }) => {
@@ -1288,7 +1360,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             const handleConfirm = () => { const reasonData = isPen ? 'HANDWRITING (Grund per Stift erfasst)' : reason; if (isValid) { onConfirm(reasonData); } };
             const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr); setDrawnStrokes(prev => ({ ...prev, ['skip_reason']: [] })); };
             useEffect(() => { if (!isOpen || !isPen || !canvasRef.current || !drawnStrokes['skip_reason']) return; redrawCanvas(canvasRef.current, drawnStrokes['skip_reason'], 1, 'skip_reason'); }, [isOpen, isPen, drawnStrokes['skip_reason']]);
-            return (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.AlertCircle} size={24} className="text-amber-600"/> Grund für Überspringen</h3><p className="text-sm text-slate-600 mb-4">Bitte geben Sie kurz an, warum die Situation-Analyse übersprungen wird (min. {MIN_LENGTH} Buchstaben/Stift-Eintrag).</p><div className="relative w-full h-32 border border-slate-300 rounded-lg bg-slate-50 overflow-hidden"><div className="absolute top-2 right-2 z-20 flex gap-1"><button onClick={() => setReasonMode(p => p === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={reasonMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}><Icon d={reasonMode === 'keyboard' ? ICONS.Pen : ICONS.Keyboard} size={16}/></button>{isPen && drawnStrokes['skip_reason']?.length > 0 && (<button onClick={clearCanvas} className="p-1 hover:bg-slate-200 rounded text-slate-400" title="Löschen"><Icon d={ICONS.Trash} size={16}/></button>)}</div>{isPen ? (<canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, canvasRef, 'skip_reason')} onPointerMove={(e) => draw(e, canvasRef, 'skip_reason')} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)}/>) : (<textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Grund hier eingeben..." className="w-full h-full p-4 text-base font-medium text-slate-700 bg-transparent resize-none focus:ring-0 focus:outline-none pr-12" autoFocus maxLength={100}/>)}</div><div className="flex justify-between items-center mt-4"><span className={`text-xs font-bold transition-colors ${isValid ? 'text-green-600' : 'text-red-500'}`}>{isValid ? 'Anforderung erfüllt.' : `Mind. ${MIN_LENGTH} Buchstaben erforderlich.`}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleConfirm} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isValid ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!isValid}>Bestätigen & Springen <Icon d={ICONS.ArrowRight} size={16}/></button></div></div></div></div>);
+            return (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in"><div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl p-6 relative border border-slate-200"><h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><Icon d={ICONS.AlertCircle} size={24} className="text-amber-600"/> Grund für Überspringen</h3><p className="text-sm text-slate-600 mb-4">Bitte geben Sie kurz an, warum die Situation-Analyse übersprungen wird (min. {MIN_LENGTH} Buchstaben/Stift-Eintrag).</p><div className="relative w-full h-32 border border-slate-300 rounded-lg bg-slate-50 overflow-hidden"><div className="absolute top-2 right-2 z-20 flex gap-1"><button onClick={() => setReasonMode(p => p === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-200 rounded text-slate-400 transition-colors" title={reasonMode === 'keyboard' ? 'Stift-Eingabe' : 'Tastatur-Eingabe'}><Icon d={reasonMode === 'keyboard' ? ICONS.Pen : ICONS.Keyboard} size={16}/></button>{isPen && drawnStrokes['skip_reason']?.length > 0 && (<button onClick={clearCanvas} className="p-1 hover:bg-slate-200 rounded text-slate-400" title="Löschen"><Icon d={ICONS.Trash} size={16}/></button>)}</div>{isPen ? (<canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, canvasRef, 'skip_reason')} onPointerMove={(e) => draw(e, canvasRef, 'skip_reason')} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)}/>) : (<textarea value={reason} onChange={(e) => setReason(e.target.value)} onInput={(e) => setReason(e.target.value)} placeholder="Grund hier eingeben..." className="w-full h-full p-4 text-base font-medium text-slate-700 bg-transparent resize-none focus:ring-0 focus:outline-none pr-12" autoFocus maxLength={100}/>)}</div><div className="flex justify-between items-center mt-4"><span className={`text-xs font-bold transition-colors ${isValid ? 'text-green-600' : 'text-red-500'}`}>{isValid ? 'Anforderung erfüllt.' : `Mind. ${MIN_LENGTH} Buchstaben erforderlich.`}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg transition-colors">Abbrechen</button><button onClick={handleConfirm} className={`px-6 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${isValid ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={!isValid}>Bestätigen & Springen <Icon d={ICONS.ArrowRight} size={16}/></button></div></div></div></div>);
         };
         
         const AdminModal = ({ isOpen, onClose, questions, onUpdate, oneDriveLink, onUpdateLink }) => { 
@@ -1738,7 +1810,30 @@ const resolveUserName = (raw) => {
 
 function App() {
             const [view, setView] = useState('situation');
-            const [showSecondYear, setShowSecondYear] = useState(false); 
+            
+            const [showSecondYear, setShowSecondYear] = useState(false);
+
+            // PATCH (Stylus Year-2 Costs): When the 2nd-year cost field becomes visible, force a DPR-correct resize
+            // to prevent "jump lines" caused by a 0x0 canvas being drawn before layout settles.
+            useEffect(() => {
+                if (!showSecondYear) return;
+                const raf = requestAnimationFrame(() => {
+                    const canvas = offerCost3Ref?.current;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    if (!rect.width || !rect.height) return;
+                    const dpr = window.devicePixelRatio || 1;
+                    canvas.width = Math.round(rect.width * dpr);
+                    canvas.height = Math.round(rect.height * dpr);
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    // Redraw existing strokes if any
+                    try { redrawCanvas(canvas, drawnStrokes['cost_monatlich2'], 1, 'cost_monatlich2'); } catch (e) {}
+                });
+                return () => cancelAnimationFrame(raf);
+            }, [showSecondYear, drawnStrokes]);
+ 
             const [activeCategory, setActiveCategory] = useState(null); 
             const [questionIndex, setQuestionIndex] = useState(0); 
             const [questionsData, setQuestionsData] = useState(INITIAL_QUESTIONS_DATA);
@@ -2462,8 +2557,10 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
 // PDF im "Print-Look" als Blob erzeugen (ohne Print-Dialog). Wiederverwendet von Share + Auto-Upload.
 
 // PDF im "Print-Look" als Blob erzeugen (ohne Print-Dialog). Wiederverwendet von Share + Auto-Upload.
-const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders) => {
+const createPrintLookPdfBlob = async (triggerToast, ensurePrintHeaders, opts = {}) => {
     if (!window.html2pdf) throw new Error('html2pdf missing');
+
+    const addPageNumbers = !!(opts && opts.addPageNumbers);
 
     // --- SHARE HARD-LOCK (v50_52): exakt links/rechts bündig, kein Cut ---
 // Ziel: Share-PDF soll exakt die Inhaltsbreite nutzen (keine Offsets, kein Extra-Padding, keine Skalierung)
@@ -2556,6 +2653,25 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
            flex:0 0 77mm !important;
            width:77mm !important;
            max-width:77mm !important;
+         }
+
+         /* ===== Share: Seitenzähler (nur im Share-Iframe) ===== */
+         .pdf-share-mode .share-page{position:relative !important;}
+         .pdf-share-mode .share-page-number{
+           position:absolute !important;
+           right:10mm !important;
+           bottom:8mm !important;
+           z-index:50 !important;
+           font-family: Arial, Helvetica, sans-serif !important;
+           font-size:10px !important;
+           font-weight:800 !important;
+           letter-spacing:0.02em !important;
+           color:#64748b !important;
+           background:rgba(255,255,255,0.88) !important;
+           border:1px solid #e2e8f0 !important;
+           border-radius:999px !important;
+           padding:3px 8px !important;
+           line-height:1 !important;
          }
 
          object-fit:contain;}`;
@@ -2726,6 +2842,20 @@ stage.appendChild(page2);
 const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
 stage.appendChild(outroPage);
 
+// ===== Share: Seitenzähler „Seite X / N“ (nur beim Teilen) =====
+if (addPageNumbers) {
+    try {
+        const pages = stage.querySelectorAll('.share-page');
+        const total = pages.length || 0;
+        pages.forEach((p, idx) => {
+            const n = doc.createElement('div');
+            n.className = 'share-page-number';
+            n.textContent = `Seite ${idx + 1} / ${total}`;
+            p.appendChild(n);
+        });
+    } catch(e) {}
+}
+
     // Layout settle
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -2833,7 +2963,7 @@ const uploadPdfToPowerAutomate = async ({ blob, type, dsl, agent, dateISO, trigg
 const backgroundAutoUpload = async ({ type, triggerToast, ensurePrintHeaders, getAgent, getDsl }) => {
     try {
         if (!window.html2pdf) return; // offline/CDN block -> skip
-        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders);
+        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders, { addPageNumbers: true });
         const dateISO = new Date().toISOString();
         const agent = getAgent();
         const dsl = getDsl();
@@ -2847,118 +2977,128 @@ const backgroundAutoUpload = async ({ type, triggerToast, ensurePrintHeaders, ge
 // --- ANDROID SHARE (UX-OPTIMIERUNG: echtes PDF + Web Share API) ---
 // Ziel: PDF im Hintergrund exakt im Print-Look erzeugen (ohne Print-Dialog) und direkt teilen.
 // Technik: Offscreen-Iframe mit kopierten Styles + @media print => @media all, dann html2pdf (Blob) -> File -> navigator.share.
+
+// --- ROBUST SHARE & SAVE (Android/iPad): WebShare wenn möglich, sonst Download-Fallback ---
+// Hintergrund: Browser erlauben navigator.share(files) nur bei gültiger "User Activation".
+// Wenn das Rendern zu lange dauert oder Files nicht unterstützt werden, wird automatisch gespeichert.
+
+// --- ROBUST SHARE & SAVE (Android/iPad): WebShare wenn möglich, sonst Download-Fallback ---
+// Hintergrund: Browser erlauben navigator.share(files) nur bei gültiger "User Activation".
+// Wenn das Rendern zu lange dauert oder Files nicht unterstützt werden, wird automatisch gespeichert.
 const handlePDFShare = async () => {
-    try {
-        if (!canNativeShare) {
-            triggerToast('Teilen ist nur auf Android verfügbar.');
-            return;
+    // FINAL SAFE (v50_65): Never white-screen, never popup-block.
+    // Strategy:
+    // 1) Generate print-look PDF as Blob.
+    // 2) Try Web Share ONLY if files-share is supported AND we are still in a likely user-activation window.
+    // 3) Otherwise download to device (Downloads) and show a clear hint.
+
+    const t0 = Date.now();
+    const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
+
+    const saveBlobToDownloads = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    };
+
+    const showOverlay = (msg='PDF wird erstellt...') => {
+        let ov = document.getElementById('pdf-share-overlay');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'pdf-share-overlay';
+            ov.style.cssText = [
+                'position:fixed','inset:0','z-index:99999',
+                'background:rgba(15,23,42,0.55)','backdrop-filter:blur(6px)',
+                'display:flex','align-items:center','justify-content:center','padding:16px'
+            ].join(';');
+            ov.innerHTML = `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:18px 18px;min-width:260px;max-width:360px;text-align:center;font-family:Arial,Helvetica,sans-serif;">
+                <div style="width:44px;height:44px;border-radius:999px;border:5px solid #e2e8f0;border-top-color:#2563eb;margin:0 auto 12px auto;animation:pspin 0.9s linear infinite;"></div>
+                <div id="pdf-share-overlay-text" style="font-weight:800;color:#0f172a;letter-spacing:-0.01em;">${msg}</div>
+                <div style="margin-top:6px;font-size:12px;color:#64748b;">Bitte kurz warten…</div>
+              </div>
+            `;
+            const st = document.createElement('style');
+            st.textContent = '@keyframes pspin{to{transform:rotate(360deg)}}';
+            ov.appendChild(st);
+            document.body.appendChild(ov);
+        } else {
+            const t = ov.querySelector('#pdf-share-overlay-text');
+            if (t) t.textContent = msg;
+            ov.style.display = 'flex';
         }
-        if (!window.html2pdf) {
-            // CDN geblockt/offline -> sauberer Fallback
-            triggerToast('PDF-Generator nicht verfügbar. Fallback: Drucken (System).');
-            try { (window.safePrint ? window.safePrint() : window.print()); } catch (e) { console.error(e); }
-            return;
-        }
-
-        // --- kleines UI-Feedback (Overlay) ---
-        const showOverlay = (msg='PDF wird erstellt...') => {
-            let ov = document.getElementById('pdf-share-overlay');
-            if (!ov) {
-                ov = document.createElement('div');
-                ov.id = 'pdf-share-overlay';
-                ov.style.cssText = [
-                    'position:fixed','inset:0','z-index:99999',
-                    'background:rgba(15,23,42,0.55)','backdrop-filter:blur(6px)',
-                    'display:flex','align-items:center','justify-content:center','padding:16px'
-                ].join(';');
-                ov.innerHTML = `
-                  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:18px 18px;min-width:260px;max-width:360px;text-align:center;font-family:Arial,Helvetica,sans-serif;">
-                    <div style="width:44px;height:44px;border-radius:999px;border:5px solid #e2e8f0;border-top-color:#2563eb;margin:0 auto 12px auto;animation:pspin 0.9s linear infinite;"></div>
-                    <div id="pdf-share-overlay-text" style="font-weight:800;color:#0f172a;letter-spacing:-0.01em;">${msg}</div>
-                    <div style="margin-top:6px;font-size:12px;color:#64748b;">Bitte kurz warten…</div>
-                  </div>
-                `;
-                const st = document.createElement('style');
-                st.textContent = '@keyframes pspin{to{transform:rotate(360deg)}}';
-                ov.appendChild(st);
-                document.body.appendChild(ov);
-            } else {
-                const t = ov.querySelector('#pdf-share-overlay-text');
-                if (t) t.textContent = msg;
-                ov.style.display = 'flex';
-            }
-        };
-        const hideOverlay = () => {
-            const ov = document.getElementById('pdf-share-overlay');
-            if (ov) ov.style.display = 'none';
-        };
-
-        showOverlay('PDF wird erstellt...');
-
-        // Toast/Dropdowns schließen lassen
-        await new Promise(r => setTimeout(r, 80));
-
-        // Print-Look PDF als Blob erzeugen (shared helper, inkl. Header/Logo & Right-Shift)
-        showOverlay('PDF wird gerendert...');
-        const filename = `Angebot_${new Date().toISOString().slice(0,10)}.pdf`;
-        const blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders);
-
-const file = new File([blob], filename, { type: 'application/pdf' });
-
-        showOverlay('Teilen-Dialog wird geöffnet...');
-
-        // --- Teilen per Web Share API (mit Files) ---
-        if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-            hideOverlay();
-            triggerToast('Dieses Gerät/Browser kann PDF-Dateien nicht direkt teilen.');
-            // Fallback: Download
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = filename;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 4000);
-            return;
-        }
-
-        try {
-            await navigator.share({
-                title: 'Angebot (PDF)',
-                text: 'PDF-Angebot teilen',
-                files: [file]
-            });
-            hideOverlay();
-            triggerToast('PDF geteilt.');
-        } catch (shareErr) {
-            // Häufig auf Tablets: User-Activation endet nach längerem Rendern -> NotAllowedError.
-            // Fallback: PDF herunterladen/öffnen, damit man es manuell teilen kann.
-            console.warn('navigator.share failed:', shareErr);
-            hideOverlay();
-            const name = (shareErr && shareErr.name) ? shareErr.name : '';
-            if (name === 'AbortError') {
-                triggerToast('Teilen abgebrochen.');
-            } else if (name === 'NotAllowedError') {
-                triggerToast('Teilen nicht möglich (Browser blockiert). PDF wird gespeichert.');
-            } else {
-                triggerToast('Teilen nicht möglich. PDF wird gespeichert.');
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = filename;
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-        }
-    } catch (err) {
-        console.error(err);
-        // Best-effort cleanup
-        try { const iframe = document.querySelector('iframe[aria-hidden="true"]'); if (iframe) iframe.remove(); } catch(e){}
+    };
+    const hideOverlay = () => {
         const ov = document.getElementById('pdf-share-overlay');
         if (ov) ov.style.display = 'none';
-        triggerToast('Teilen abgebrochen oder nicht möglich.');
+    };
+
+    let blob = null;
+
+    try {
+        if (!window.html2pdf) {
+            triggerToast('PDF-Generator nicht verfügbar. Fallback: Drucken.');
+            try { (window.safePrint ? window.safePrint() : window.print()); } catch (e) {}
+            return;
+        }
+
+        showOverlay('PDF wird erstellt...');
+        showOverlay('PDF wird gerendert...');
+
+        // Generate once (no double render)
+        blob = await createPrintLookPdfBlob(triggerToast, ensurePrintHeaders, { addPageNumbers: true });
+
+        // Decide whether to attempt Web Share
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        const canFileShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+        const elapsed = Date.now() - t0;
+        const userActivation = !!(navigator.userActivation && navigator.userActivation.isActive);
+
+        // Heuristic window: if rendering took too long, WebShare is likely blocked -> skip to download.
+        const likelyAllowed = userActivation || elapsed < 1200;
+
+        if (canFileShare && likelyAllowed) {
+            showOverlay('Teilen-Dialog wird geöffnet...');
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Angebot',
+                    text: 'Hier ist Ihr persönliches Angebot.'
+                });
+                return; // success
+            } catch (errShare) {
+                // NotAllowedError / AbortError / etc -> fallback to download
+                try { console.warn('navigator.share blocked/failed -> download fallback', errShare); } catch(e){}
+            }
+        }
+
+        // Fallback: download
+        hideOverlay();
+        saveBlobToDownloads(blob);
+        try {
+            alert("Teilen wurde vom Browser blockiert oder ist nicht verfügbar.\n\nDas PDF wurde automatisch in Ihrem 'Downloads'-Ordner gespeichert.\nTipp: Öffnen Sie es in 'Dateien' und teilen Sie es von dort per WhatsApp/Outlook.");
+        } catch(e) {}
+    } catch (err) {
+        hideOverlay();
+        try { console.warn('PDF Share failed:', err); } catch(e){}
+        // last-resort fallback
+        try {
+            if (blob) saveBlobToDownloads(blob);
+            else { (window.safePrint ? window.safePrint() : window.print()); }
+        } catch (e2) {}
+        try { triggerToast('Teilen/Export nicht möglich.'); } catch(e){}
     } finally {
-        // Print-Header wieder entfernen (wie afterprint)
         try { document.querySelectorAll('.print-page-header').forEach(el => el.remove()); } catch(e){}
+        hideOverlay();
     }
 };
+
+
 
 
 
@@ -3089,12 +3229,20 @@ const file = new File([blob], filename, { type: 'application/pdf' });
 
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
                                 <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
-                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                <div className="grid grid-cols-3 gap-4 mt-4 cost-grid-years">
+                                    {/* 1) Einmalig */}
                                     {renderOfferInput('einmalig', 'CostEinmalig', 'text')}
+
+                                    {/* 2) Monatlich im 1. Jahr (oder allgemein, wenn 2. Jahr aus ist) */}
                                     {renderOfferInput('monatlich1', showSecondYear ? 'CostMonatlich1' : 'CostMonatlich', 'text')}
+
+                                    {/* 3) Monatlich im 2. Jahr: bleibt IMMER im DOM (kein Reflow), nur unsichtbar wenn aus */}
+                                    <div className={`year-2-container ${!showSecondYear ? 'hidden-layer' : ''}`}>
+                                        {renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}
+                                    </div>
                                 </div>
 
-                                {/* Toggle: Kosten im 2. Jahr */}
+                                {/* Toggle: Kosten im 2. Jahr (ohne Layout-Mehrhöhe, Feld bleibt in der Zeile) */}
                                 <div className="mt-3">
                                     <button
                                         type="button"
@@ -3108,12 +3256,6 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                                             {showSecondYear ? '−' : '+'}
                                         </span>
                                     </button>
-
-                                    {showSecondYear && (
-                                        <div className="mt-3 animate-in">
-                                            {renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}
-                                        </div>
-                                    )}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}{renderOfferInput('gueltig', 'ValidUntilLabel', 'date')}<div className="col-span-2">
   <div className="h-12 w-full bg-white border border-slate-300 rounded-lg overflow-hidden flex items-stretch">
@@ -3142,7 +3284,7 @@ const file = new File([blob], filename, { type: 'application/pdf' });
                     </div>
 
                     <div className="h-14 bg-[#f0f6ff] border-t border-slate-200 flex items-center px-4 shrink-0 z-40 justify-between shadow-sm relative w-full footer-bar">
-                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button><button onClick={() => setGestureMode(v => !v)} className={`p-2 rounded-md transition-colors ${gestureMode ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title={gestureMode ? 'Zoom/Pan aktiv (Tippen zum Deaktivieren)' : 'Zoom/Pan (2 Finger)'}><Icon d={ICONS.ZoomIn} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
+                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
                         </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
