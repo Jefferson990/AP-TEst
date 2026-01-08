@@ -638,15 +638,7 @@ html, body {
         margin:0 !important;
         page-break-after:always !important;
         overflow:hidden !important;
-        /* Vollfläche: keine Karten-Optik im PDF */
-        border-radius:0 !important;
-        padding:0 !important;
     }
-
-    /* Cover/Outro Inhalt bekommt sein Padding INSIDE, damit außen wirklich Vollfläche ist */
-    body.pdf-share-mode .share-cover-inner{ padding:28px !important; }
-    body.pdf-share-mode .share-outro{ display:flex !important; align-items:center !important; justify-content:center !important; }
-    body.pdf-share-mode .share-outro-grid{ padding:28px !important; width:100% !important; box-sizing:border-box !important; }
 
 }
 
@@ -715,6 +707,10 @@ html, body {
 .share-outro-link{font-size:9px;word-break:break-all;color:rgba(255,255,255,0.65);margin-top:6px;font-weight:800;}
 .share-outro-amount{margin-top:6px;font-size:44px;font-weight:1000;color:#93c5fd;}
 .share-outro-voucher{margin-top:10px;padding:12px 10px;border:2px dashed rgba(255,255,255,0.35);border-radius:18px;font-family:monospace;font-size:16px;font-weight:1000;background:rgba(0,0,0,0.18);letter-spacing:0.12em;}
+
+    doc.head.appendChild(styleEl);
+
+
 /* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
 :root{
   --SHARE_OFFSET_X: 0px; /* + = rechts | - = links */
@@ -2287,13 +2283,8 @@ const handleFinishOfferClick = () => {
                     canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
                     return;
                 }
-                // Wenn gerade gezeichnet wird (Pen), blocken wir Default-Gesten.
-                if (isDrawingRef?.current) {
-                    canvas.style.touchAction = 'none';
-                    return;
-                }
-                // Standard: Finger-Gesten (Scroll/Pinch) erlauben.
-                canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
+                // Normal: 1 Finger/Pen = Zeichnen (keine Default-Gesten), 2 Finger = Browser-Pan/Pinch erlauben.
+                canvas.style.touchAction = (count >= 2) ? 'pan-x pan-y pinch-zoom' : 'none';
             };
 
             const startDrawing = useCallback((e, ref, key) => {
@@ -2320,12 +2311,8 @@ const handleFinishOfferClick = () => {
                     return;
                 }
 
-                if (pointerType === 'touch' && st.count === 1) {
-                    // 1 Finger (Touch): NICHT zeichnen und NICHT preventDefault -> Finger bleibt Finger (Scroll möglich)
-                    isDrawingRef.current = false;
-                    currentStrokeRef.current = null;
-                    return;
-                }
+                // 1 Finger / Pen: Zeichnen (Default-Gesten blocken)
+                e.preventDefault();
 
                 const isPenInput = pointerType === 'pen';
                 const isMainCanvasPenActive = ref === canvasRef && inputMode === 'pen';
@@ -2340,10 +2327,6 @@ const handleFinishOfferClick = () => {
 
                 const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {};
                 if (cssX == null || cssY == null) return;
-
-                // Ab hier zeichnen wir wirklich -> Default-Gesten blocken
-                try { canvas.style.touchAction = 'none'; } catch(_) {}
-                e.preventDefault();
 
                 const ctx = canvas.getContext('2d');
                 const currentTool = toolRef.current;
@@ -2535,8 +2518,7 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
          .pdf-share-mode .print-page-header{display:flex !important;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#ffffff !important;border:1px solid #e2e8f0;border-radius:14px;margin:0 0 10px 0;}
          .pdf-share-mode .print-page-header .title{font-size:28px;font-weight:900;color:#0b1e42;letter-spacing:-0.02em;}
          .pdf-share-mode .print-page-header .print-header-right{display:flex;align-items:center;gap:10px;}
-         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;}
-
+         .pdf-share-mode .print-page-header .hida-logo-print{height:34px;width:auto;
          /* === A4-Hardlock (mm) nur für Share-PDF (entkoppelt vom Monitor) === */
          .pdf-share-mode .share-page,
          .pdf-share-mode .share-cover,
@@ -2558,30 +2540,7 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
            padding:0 !important;
            overflow:hidden !important;
          }
-         
-         /* Full-Bleed Cover/Outro (Seite 1 & 4) */
-         .pdf-share-mode .share-page{padding:0 !important;margin:0 !important;border-radius:0 !important;}
-         .pdf-share-mode .share-cover,
-         .pdf-share-mode .share-outro{
-           border-radius:0 !important;
-           padding:0 !important;
-           margin:0 !important;
-           width:297mm !important;
-           max-width:297mm !important;
-           height:210mm !important;
-           min-height:210mm !important;
-           overflow:hidden !important;
-         }
-         .pdf-share-mode .share-cover-inner{
-           padding:28px !important;
-           max-width:none !important;
-         }
-         .pdf-share-mode .share-outro-grid{
-           padding:28px !important;
-           max-width:none !important;
-         }
-
-/* Spalten fix für Seite 2 & 3 */
+         /* Spalten fix für Seite 2 & 3 */
          .pdf-share-mode .situation-view-wrapper{padding:10mm !important; gap:6mm !important;}
          .pdf-share-mode .print-offer-view{padding:10mm !important; gap:6mm !important;}
          .pdf-share-mode .situation-view-wrapper > div.flex-1,
@@ -2599,7 +2558,9 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
          }
 
          object-fit:contain;}`;
-    doc.head.appendChild(styleEl);
+
+
+
 
     const base = doc.createElement('base');
     base.href = window.location.href;
@@ -2657,17 +2618,6 @@ const wrapSharePage = (titleText, contentEl) => {
     return page;
 };
 
-// Cover/Outro: ohne Header (volle Fläche, wie echte Seite 1/4)
-const wrapSharePageNoHeader = (contentEl) => {
-    const page = doc.createElement('div');
-    page.className = 'share-page';
-    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:hidden;height:auto;padding:0;margin:0;';
-    page.appendChild(contentEl);
-    return page;
-};
-
-
-
 // Inhalt klonen + Print-Header im Clone entfernen (wir setzen den Header oben im Wrapper)
 const cloneSituation = sourceSituation.cloneNode(true);
 try { cloneSituation.classList.remove('hidden'); } catch(e){}
@@ -2695,12 +2645,6 @@ const makeCoverContent = () => {
     wrap.innerHTML = `
       <div class="share-cover-inner">
         <div class="share-cover-badge">EXKLUSIV FÜR SIE ERSTELLT</div>
-        <div style="margin-top:18px;display:flex;justify-content:center;">
-          <img src="${HIDA_LOGO_DATA_URI}" alt="HIDA" style="height:60px;width:auto;filter:drop-shadow(0 10px 20px rgba(0,0,0,.25));" />
-        </div>
-        <div style="margin-top:10px;font-weight:800;letter-spacing:0.22em;color:rgba(255,255,255,0.78);font-size:12px;">
-          SMART • SCHNELL • SICHER
-        </div>
         <div class="share-cover-title">
           <div>Ihr persönliches</div>
           <div class="share-cover-title-accent">Angebot</div>
@@ -2760,11 +2704,10 @@ const makeOutroContent = () => {
     return wrap;
 };
 
-// Cover als erste Seite (ohne Header)
-const coverPage = wrapSharePageNoHeader(makeCoverContent());
+// Cover als erste Seite
+const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
 stage.appendChild(coverPage);
 
-// Seite 2: Basis (mit Header)
 const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
 stage.appendChild(page1);
 
@@ -2778,8 +2721,8 @@ cloneOffer.style.overflow = 'visible';
 const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
 stage.appendChild(page2);
 
-// Outro als letzte Seite (ohne Header)
-const outroPage = wrapSharePageNoHeader(makeOutroContent());
+// Outro als letzte Seite
+const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
 stage.appendChild(outroPage);
 
     // Layout settle
