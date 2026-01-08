@@ -1057,7 +1057,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             'Offer1Title': '1. Hardware, Anbieter & Nutzung', 
             'Offer2Title': '2. Haushalt und weitere Produkte', 
             'Offer3Title': '3. Fernsehen & Wi-Fi', 
-            'CostHeader': 'Kostenübersicht & Abschluss', 'CostEinmalig': 'EINMALIG (€)', 'CostMonatlich1': 'MONATLICH IM 1. JAHR (€)', 'CostMonatlich2': 'MONATLICH IM 2. JAHR (€)', 'AgentLabel': 'PERSÖNLICHER AGENT', 'DateLabel': 'DATUM', 'ValidUntilLabel': 'ANGEBOT GÜLTIG BIS', 'Kundenname_Label': 'Kundenname', 'Rufnummer_Label': 'Rufnummer', 'Anbieter_Label': 'Anbieter', 'Hardware_Label': 'Hardware', 'Nutzung_Label': 'Nutzung', 'Haushalt_Label': 'Haushalt', 'Weitere Produkte_Label': 'Weitere Produkte', 
+            'CostHeader': 'Kostenübersicht & Abschluss', 'CostEinmalig': 'EINMALIG (€)', 'CostMonatlich1': 'MONATLICH IM 1. JAHR (€)', 'CostMonatlich': 'MONATLICH (€)', 'CostMonatlich2': 'MONATLICH IM 2. JAHR (€)', 'AgentLabel': 'PERSÖNLICHER AGENT', 'DateLabel': 'DATUM', 'ValidUntilLabel': 'ANGEBOT GÜLTIG BIS', 'Kundenname_Label': 'Kundenname', 'Rufnummer_Label': 'Rufnummer', 'Anbieter_Label': 'Anbieter', 'Hardware_Label': 'Hardware', 'Nutzung_Label': 'Nutzung', 'Haushalt_Label': 'Haushalt', 'Weitere Produkte_Label': 'Weitere Produkte', 
             'Fernsehen_Label': 'Fernsehen', 'WiFi_Label': 'WiFi', 'Gesamtkosten_Label': 'Gesamtkosten', 'StatusOpen': 'Offen', 'StatusClosed': 'Abgeschlossen', 'StatusNeutral': 'Neutral'
         };
         
@@ -1072,7 +1072,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
                 Offer3Title: '3. TV & Wi-Fi',
                 CostHeader: 'Cost Overview & Conclusion',
                 CostEinmalig: 'ONE-TIME (€)',
-                CostMonatlich1: 'MONTHLY IN 1ST YEAR (€)',
+                CostMonatlich1: 'MONTHLY IN 1ST YEAR (€)', CostMonatlich: 'MONTHLY (€)',
                 CostMonatlich2: 'MONTHLY IN 2ND YEAR (€)',
                 AgentLabel: 'PERSONAL AGENT',
                 DateLabel: 'DATE',
@@ -1737,7 +1737,8 @@ const resolveUserName = (raw) => {
         };
 
 function App() {
-            const [view, setView] = useState('situation'); 
+            const [view, setView] = useState('situation');
+            const [showSecondYear, setShowSecondYear] = useState(false); 
             const [activeCategory, setActiveCategory] = useState(null); 
             const [questionIndex, setQuestionIndex] = useState(0); 
             const [questionsData, setQuestionsData] = useState(INITIAL_QUESTIONS_DATA);
@@ -3088,7 +3089,32 @@ const file = new File([blob], filename, { type: 'application/pdf' });
 
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
                                 <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><Icon d={ICONS.Calculator} size={20} className="text-blue-600"/> {getStaticLabel('CostHeader')}</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">{renderOfferInput('einmalig', 'CostEinmalig', 'text')}{renderOfferInput('monatlich1', 'CostMonatlich1', 'text')}{renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}</div>
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                    {renderOfferInput('einmalig', 'CostEinmalig', 'text')}
+                                    {renderOfferInput('monatlich1', showSecondYear ? 'CostMonatlich1' : 'CostMonatlich', 'text')}
+                                </div>
+
+                                {/* Toggle: Kosten im 2. Jahr */}
+                                <div className="mt-3">
+                                    <button
+                                        type="button"
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors select-none"
+                                        onClick={() => setShowSecondYear(v => !v)}
+                                    >
+                                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            {getStaticLabel('CostMonatlich2')}
+                                        </span>
+                                        <span className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-black text-lg leading-none">
+                                            {showSecondYear ? '−' : '+'}
+                                        </span>
+                                    </button>
+
+                                    {showSecondYear && (
+                                        <div className="mt-3 animate-in">
+                                            {renderOfferInput('monatlich2', 'CostMonatlich2', 'text')}
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">{renderOfferInput('agent', 'AgentLabel', 'text')}{renderOfferInput('datum', 'DateLabel', 'text')}{renderOfferInput('gueltig', 'ValidUntilLabel', 'date')}<div className="col-span-2">
   <div className="h-12 w-full bg-white border border-slate-300 rounded-lg overflow-hidden flex items-stretch">
     {/* Shop-Stempel (fix links) */}
