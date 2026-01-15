@@ -668,6 +668,24 @@ html, body {
         overflow:hidden !important;
     }
 
+
+/* ===== SHARE PDF: Intro/Outro vertikal sauber & besser gefüllt ===== */
+body.pdf-share-mode .share-page-content > .share-cover{
+  height:100% !important;
+  min-height:100% !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+body.pdf-share-mode .share-page-content > .share-cover .share-cover-inner{
+  transform: scale(1.06) !important;
+  transform-origin: center !important;
+}
+/* Outro: keine Folgeseite erzwingen */
+body.pdf-share-mode .share-page:last-child{
+  page-break-after:auto !important;
+  break-after:auto !important;
+}
 }
 
 
@@ -764,10 +782,6 @@ html, body {
 .share-outro-link{font-size:9px;word-break:break-all;color:rgba(255,255,255,0.65);margin-top:6px;font-weight:800;}
 .share-outro-amount{margin-top:6px;font-size:44px;font-weight:1000;color:#93c5fd;}
 .share-outro-voucher{margin-top:10px;padding:12px 10px;border:2px dashed rgba(255,255,255,0.35);border-radius:18px;font-family:monospace;font-size:16px;font-weight:1000;background:rgba(0,0,0,0.18);letter-spacing:0.12em;}
-
-    doc.head.appendChild(styleEl);
-
-
 /* ===== MANUELLER SHARE OFFSET (FINAL) ===== */
 :root{
   --SHARE_OFFSET_X: 0px; /* + = rechts | - = links */
@@ -1287,12 +1301,63 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
                 </div>
             );
         };
+
+        const FollowUpModal = ({ isOpen, onCancel, onSave, followUpDraft, setFollowUpDraft, currentLabel, stepInfo }) => {
+            if (!isOpen) return null;
+
+            const reasonOk = (followUpDraft.reason || "").trim().length >= 3;
+            const canSave = !!followUpDraft.date && !!followUpDraft.time && reasonOk;
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900">Folgetermin erfassen</h3>
+                                    <p className="text-sm text-slate-600 mt-1">
+                                        {currentLabel ? <>Offener Punkt: <span className="font-bold text-red-700">{currentLabel}</span></> : "Offener Punkt"}
+                                        {stepInfo ? <span className="ml-2 text-slate-400">({stepInfo})</span> : null}
+                                    </p>
+                                </div>
+                                <button onClick={onCancel} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Abbrechen</button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600">Datum *</label>
+                                    <input type="date" value={followUpDraft.date} onChange={(e) => setFollowUpDraft(prev => ({ ...prev, date: e.target.value }))} className="w-full h-11 mt-1 px-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600">Uhrzeit *</label>
+                                    <input type="time" value={followUpDraft.time} onChange={(e) => setFollowUpDraft(prev => ({ ...prev, time: e.target.value }))} className="w-full h-11 mt-1 px-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-600">Grund *</label>
+                                <textarea value={followUpDraft.reason} onChange={(e) => setFollowUpDraft(prev => ({ ...prev, reason: e.target.value }))} rows="3" placeholder="z.B. Tarifvergleich, Rückruf, Unterlagen fehlen..." className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                {!reasonOk && followUpDraft.reason.length > 0 ? <div className="text-xs text-red-600 mt-1 font-bold">Bitte einen kurzen Grund angeben.</div> : null}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t flex items-center justify-end gap-3">
+                            <button onClick={onCancel} className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Abbrechen</button>
+                            <button onClick={onSave} disabled={!canSave} className={`px-5 py-2.5 rounded-xl font-bold text-white ${canSave ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-300 cursor-not-allowed"}`}>Speichern</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         
         const ReferralModal = ({ isOpen, onClose, onPrint }) => {
             if (!isOpen) return null;
             const handlePrintAction = () => {
                 // Wichtig: ohne Timeout, damit Drucken auf Mobile nicht durch fehlende User-Activation blockiert wird
-                onClose();
+                onClose('print');
                 onPrint();
             };
 
@@ -1326,8 +1391,8 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
                             <button onClick={handlePrintAction} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center gap-2">
                                 Weiter zum Druck <Icon d={ICONS.ArrowRight} size={18}/>
                             </button>
-                            <button onClick={onClose} className="w-full py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition-colors">
-                                Überspringen
+                            <button onClick={() => onClose('cancel')} className="w-full py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition-colors">
+                                Abbrechen
                             </button>
                         </div>
                     </div>
@@ -1374,6 +1439,150 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             if (!isOpen) return null; 
             return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"> <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"> <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl"><h3 className="font-bold text-lg flex items-center gap-2 text-slate-800"><Icon d={ICONS.Lock} size={18}/> Admin: Fragen & Links</h3><button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><Icon d={ICONS.X} size={18}/></button></div> <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"> <div className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm"><h4 className="font-bold text-slate-700 mb-2 text-sm flex items-center gap-2"><Icon d={ICONS.Book} size={16} className="text-blue-500"/> Link zur Aktionsmappe (OneDrive)</h4><input type="url" value={localLink} onChange={(e) => setLocalLink(e.target.value)} placeholder="https://..." className="w-full border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none text-slate-600"/><p className="text-[10px] text-slate-400 mt-1">Dieser Link wird beim Klick auf das Buch-Icon (Angebotsseite) geöffnet.</p></div><div className="border-t border-slate-100 pt-2"><h4 className="font-bold text-slate-700 mb-4 text-sm">Fragenkatalog bearbeiten</h4><div className="space-y-4">{Object.keys(localData).map(cat => ( <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden"><button onClick={() => setExpandedCat(expandedCat === cat ? null : cat)} className={`w-full p-3 text-left font-bold flex justify-between items-center ${expandedCat === cat ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'}`}><span>{cat === 'default' ? 'Standard Fragen' : cat}</span><Icon d={expandedCat === cat ? ICONS.ArrowLeft : ICONS.ArrowRight} className={`transform transition-transform ${expandedCat === cat ? '-rotate-90' : 'rotate-90'}`} size={16}/></button> {expandedCat === cat && (<div className="p-4 bg-slate-50/50 space-y-2 border-t border-slate-100">{localData[cat].map((q, i) => (<div key={i} className="flex gap-2"><input className="flex-1 border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none" value={q} onChange={(e) => handleQuestionChange(cat, i, e.target.value)} /><button onClick={() => handleQuestionChange(cat, i, '')} className="p-2 text-red-400 hover:bg-red-100 rounded" title="Frage löschen"><Icon d={ICONS.Trash} size={16}/></button></div>))}<button onClick={() => handleAddQuestion(cat)} className="text-xs font-bold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1"><Icon d={ICONS.Plus} size={14}/> Frage hinzufügen</button></div>)} </div> ))} </div></div></div> <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 rounded-b-xl"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-200 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">Alle Speichern</button></div> </div> </div> ); 
         };
+
+const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) => {
+    const iframeRef = useRef(null);
+    const fileRef = useRef(null);
+    const [isWorking, setIsWorking] = useState(false);
+
+    const gotAutoImportRef = useRef(false);
+
+    // Listen for screenshot messages from the iframe (optional: if the Bundle page supports it)
+    // Robust: accepts {dataUrl} or {payload}. Also verifies sender (source window) + origin.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        gotAutoImportRef.current = false;
+
+        const expectedWin = iframeRef.current?.contentWindow || null;
+        let expectedOrigin = null;
+        try { expectedOrigin = url ? (new URL(url)).origin : null; } catch(_) {}
+
+        const handler = (e) => {
+            try {
+                const d = e.data || {};
+                if (!d || d.type !== 'BUNDLE_SCREENSHOT') return;
+
+                // Security: accept only from our iframe window (if available) and/or from expected origin
+                if (expectedWin && e.source && e.source !== expectedWin) return;
+                if (expectedOrigin && e.origin && e.origin !== expectedOrigin) return;
+
+                const imageStr = d.dataUrl || d.payload;
+
+                if (typeof imageStr === 'string' && imageStr.startsWith('data:image')) {
+                    gotAutoImportRef.current = true;
+                    if (typeof onImportToCanvas === 'function') onImportToCanvas(imageStr);
+                    if (typeof triggerToast === 'function') triggerToast('Bundle-Screenshot in Canva 1 übernommen.');
+                    setIsWorking(false);
+                } else {
+                    console.warn('BUNDLE_SCREENSHOT received but missing/invalid image data', d);
+                }
+            } catch (err) {
+                console.warn('BundleModal message handler failed', err);
+            }
+        };
+
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, [isOpen, url, onImportToCanvas, triggerToast]);
+
+
+    if (!isOpen) return null;
+
+    const requestIframeScreenshot = () => {
+        try {
+            const win = iframeRef.current?.contentWindow;
+            let targetOrigin = '*';
+            try { targetOrigin = url ? (new URL(url)).origin : '*'; } catch(_) {}
+            if (win) win.postMessage({ type: 'REQUEST_BUNDLE_SCREENSHOT' }, targetOrigin);
+        } catch (_) {}
+    };
+
+    const handleImportClick = async () => {
+        if (isWorking) return;
+        setIsWorking(true);
+
+        // 1) Try postMessage flow (works only if the Bundle page implements it)
+        requestIframeScreenshot();
+
+        // 2) Short wait for a response; if none -> fallback to manual file import
+        await new Promise((res) => setTimeout(res, 6000));
+
+        // If no auto-import arrived, stop spinner and show the hint.
+        if (!gotAutoImportRef.current) {
+            setIsWorking(false);
+            if (typeof triggerToast === 'function') {
+                triggerToast('Kein Auto-Import erhalten. Diese Verkaufsmappe sendet aktuell keinen Screenshot per postMessage. Bitte dort Screenshot/Druck nutzen oder den Sender-Patch (postMessage + html2canvas) einbauen.');
+            }
+        }
+    };
+
+    const handleFilePick = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image') && typeof onImportToCanvas === 'function') {
+                onImportToCanvas(dataUrl);
+                if (typeof triggerToast === 'function') triggerToast('Bild in Canva 1 übernommen.');
+            }
+            e.target.value = '';
+        };
+        reader.readAsDataURL(file);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 animate-in fade-in">
+            <div className="bg-white w-[95vw] h-[90vh] rounded-2xl shadow-2xl border border-slate-200 relative overflow-hidden">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full bg-white/90 border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center justify-center"
+                    title="Schließen"
+                >
+                    <Icon d={ICONS.X} size={18}/>
+                </button>
+
+                <div className="absolute top-3 left-3 right-14 z-10 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleImportClick}
+                        className="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        title="Bundle als Screenshot/Bild in Canva 1 übernehmen"
+                    >
+                        <Icon d={ICONS.Camera} size={16}/>
+                        {isWorking ? 'Übernehme…' : '📸 In Canva 1 übernehmen'}
+                    </button>
+
+                    <span className="text-[11px] text-slate-500 hidden sm:inline">
+                        Falls nötig: Screenshot speichern und als Bild auswählen.
+                    </span>
+
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFilePick}
+                        style={{ display: 'none' }}
+                    />
+                </div>
+
+                <div className="w-full h-full p-3 pt-16">
+                    <iframe
+                        ref={iframeRef}
+                        title="Bundle Manager"
+                        src={url}
+                        className="w-full h-full rounded-xl border border-slate-200"
+                        sandbox="allow-same-origin allow-scripts"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 
         const StatsModal = ({ isOpen, onClose }) => {
 const resolveUserName = (raw) => {
@@ -1682,7 +1891,16 @@ const resolveUserName = (raw) => {
             ctx.globalAlpha = 1; 
         };
 
-        const OfferCanvas = React.memo(({ canvasRef, label, icon, statusKey, status, setStatus, inputMode, startDrawing, draw, stopDrawing, textValue, handleTextChange, textStyle, textSize, drawnStrokes, setDrawnStrokes, scaleRef, triggerRedraw, image, onClearImage, imageTransform, onUpdateImageTransform }) => { const SIZE_DIFFERENCE_THRESHOLD = 5; const toggleStatus = (newStatus) => { setStatus(prev => ({ ...prev, [statusKey]: prev[statusKey] === newStatus ? 'neutral' : newStatus })); }; const isOpen = status === 'open'; const isClosed = status === 'closed'; let statusClass = 'border-slate-300'; if (isOpen) statusClass = 'border-red-500 ring-4 ring-red-100/50'; else if (isClosed) statusClass = 'border-green-500 ring-4 ring-green-100/50'; const containerClasses = `offer-canvas-container ${statusClass} flex flex-col min-h-[600px]`; const getOfferTextClasses = () => { let classes = "absolute inset-0 w-full h-full p-4 bg-transparent resize-none focus:ring-0 focus:outline-none z-30 leading-relaxed "; if (textSize === 'small') classes += "text-base "; else if (textSize === 'medium') classes += "text-lg "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; classes += inputMode === 'pen' ? 'pointer-events-none text-slate-800' : 'pointer-events-auto text-slate-800'; return classes; }; useEffect(() => { const canvas = canvasRef.current; if (!canvas || !drawnStrokes) return; const rect = canvas.getBoundingClientRect(); const currentWidth = rect.width; let baseWidth = scaleRef.current.baseWidth; if (baseWidth === 0) { scaleRef.current.baseWidth = currentWidth; baseWidth = currentWidth; } const scaleFactor = currentWidth / baseWidth; redrawCanvas(canvas, drawnStrokes, scaleFactor, statusKey); if (Math.abs(currentWidth - baseWidth) > SIZE_DIFFERENCE_THRESHOLD) { scaleRef.current.baseWidth = currentWidth; } }, [canvasRef, drawnStrokes, triggerRedraw]); useEffect(() => { const canvas = canvasRef.current; if (canvas && scaleRef.current.baseWidth === 0) { const rect = canvas.getBoundingClientRect(); scaleRef.current.baseWidth = rect.width; } }, [canvasRef]); const isPenMode = inputMode === 'pen'; const { x, y, scale, rotation } = imageTransform; 
+        const OfferCanvas = React.memo(({ canvasRef, label, icon, statusKey, status, setStatus,  inputMode, startDrawing, draw, stopDrawing, textValue, handleTextChange, textStyle, textSize, drawnStrokes, setDrawnStrokes, scaleRef, triggerRedraw, image, onClearImage, imageTransform, onUpdateImageTransform , followUpInfo, onOpenBundleModal}) => { const SIZE_DIFFERENCE_THRESHOLD = 5; const toggleStatus = (newStatus) => {
+                    if (newStatus === 'closed') {
+                        setStatus(prev => ({ ...prev, [statusKey]: (prev[statusKey] === 'closed' ? 'neutral' : 'closed') }));
+                        return;
+                    }
+                    if (newStatus === 'open') {
+                        setStatus(prev => ({ ...prev, [statusKey]: (prev[statusKey] === 'open' ? 'neutral' : 'open') }));
+                        return;
+                    }
+                }; const isOpen = status === 'open'; const isClosed = status === 'closed'; let statusClass = 'border-slate-300'; if (isOpen) statusClass = 'border-red-500 ring-4 ring-red-100/50'; else if (isClosed) statusClass = 'border-green-500 ring-4 ring-green-100/50'; const containerClasses = `offer-canvas-container ${statusClass} flex flex-col min-h-[600px]`; const getOfferTextClasses = () => { let classes = "absolute inset-0 w-full h-full p-4 bg-transparent resize-none focus:ring-0 focus:outline-none z-30 leading-relaxed "; if (textSize === 'small') classes += "text-base "; else if (textSize === 'medium') classes += "text-lg "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; classes += inputMode === 'pen' ? 'pointer-events-none text-slate-800' : 'pointer-events-auto text-slate-800'; return classes; }; useEffect(() => { const canvas = canvasRef.current; if (!canvas || !drawnStrokes) return; const rect = canvas.getBoundingClientRect(); const currentWidth = rect.width; let baseWidth = scaleRef.current.baseWidth; if (baseWidth === 0) { scaleRef.current.baseWidth = currentWidth; baseWidth = currentWidth; } const scaleFactor = currentWidth / baseWidth; redrawCanvas(canvas, drawnStrokes, scaleFactor, statusKey); if (Math.abs(currentWidth - baseWidth) > SIZE_DIFFERENCE_THRESHOLD) { scaleRef.current.baseWidth = currentWidth; } }, [canvasRef, drawnStrokes, triggerRedraw]); useEffect(() => { const canvas = canvasRef.current; if (canvas && scaleRef.current.baseWidth === 0) { const rect = canvas.getBoundingClientRect(); scaleRef.current.baseWidth = rect.width; } }, [canvasRef]); const isPenMode = inputMode === 'pen'; const { x, y, scale, rotation } = imageTransform; 
         const interactionStateRef = useRef({ isDragging: false, isScaling: false, startX: 0, startY: 0, initialX: 0, initialY: 0, initialScale: 1.0, initialDistance: 0, initialRotation: 0, initialAngle: 0, mode: null });
         const pointerCacheRef = useRef({}); 
         const getClientCoords = (e) => { const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; return { clientX, clientY }; }; 
@@ -1690,7 +1908,30 @@ const resolveUserName = (raw) => {
         const handleInteractionMove = useCallback((e) => { if (!image) return; const { clientX, clientY } = getClientCoords(e); if (clientX === undefined || clientY === undefined) return; pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; const pointerIds = Object.keys(pointerCacheRef.current); const mode = interactionStateRef.current.mode; if (pointerIds.length === 1 && mode === 'drag') { e.preventDefault(); e.stopPropagation(); const { startX, startY, initialX, initialY } = interactionStateRef.current; const dx = clientX - startX; const dy = clientY - startY; onUpdateImageTransform(statusKey, { x: initialX + dx, y: initialY + dy }); } else if (pointerIds.length >= 2 && mode === 'scale') { e.preventDefault(); e.stopPropagation(); const { initialDistance, initialScale, initialRotation, initialAngle } = interactionStateRef.current; const relevantIds = Object.keys(pointerCacheRef.current).slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; if (!p1 || !p2) return; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const ratio = currentDistance / initialDistance; let newScale = initialScale * ratio; newScale = Math.min(2.5, Math.max(0.25, newScale)); newScale = Math.round(newScale * 100) / 100; const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); const angleDelta = currentAngle - initialAngle; const rotationDeltaDeg = angleDelta * (180 / Math.PI); let newRotation = (initialRotation + rotationDeltaDeg); newRotation = Math.round(newRotation * 10) / 10; if (newScale !== scale || newRotation !== rotation) { onUpdateImageTransform(statusKey, { scale: newScale, rotation: newRotation }); } } }, [image, onUpdateImageTransform, statusKey, scale, rotation]); 
         const handleInteractionEnd = useCallback((e) => { e.target.releasePointerCapture(e.pointerId); delete pointerCacheRef.current[e.pointerId]; const pointerIds = Object.keys(pointerCacheRef.current); if (pointerIds.length === 0) { interactionStateRef.current.mode = null; interactionStateRef.current.isDragging = false; interactionStateRef.current.isScaling = false; } else if (pointerIds.length === 1) { const remainingId = pointerIds[0]; const p = pointerCacheRef.current[remainingId]; interactionStateRef.current = { isDragging: true, isScaling: false, startX: p.x, startY: p.y, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' }; } else if (pointerIds.length >= 2) { const relevantIds = pointerIds.slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: currentDistance, initialScale: scale, initialRotation: rotation, initialAngle: currentAngle, mode: 'scale' }; } e.preventDefault(); e.stopPropagation(); }, [x, y, scale, rotation]); 
         const handleImageReset = () => { onUpdateImageTransform(statusKey, { x: 0, y: 0, scale: 1.0, rotation: 0 }); }; 
-        return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{image && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={handleImageReset} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}{image && (<button onClick={onClearImage} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eingefügtes Bild entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button data-print-keep="1" onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button data-print-keep="1" onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div></div><div className="canvas-lines"></div>{image && (<div className="absolute inset-0 z-20" onPointerDown={isPenMode ? handleInteractionStart : undefined} onPointerMove={isPenMode ? handleInteractionMove : undefined} onPointerUp={isPenMode ? handleInteractionEnd : undefined} onPointerCancel={isPenMode ? handleInteractionEnd : undefined} onPointerLeave={isPenMode ? handleInteractionEnd : undefined} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: isPenMode ? (interactionStateRef.current.mode === 'drag' ? 'grabbing' : interactionStateRef.current.mode === 'scale' ? 'crosshair' : 'grab') : 'default', pointerEvents: isPenMode ? 'auto' : 'none', touchAction: 'none' }}><img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 0.7 }}/></div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
+        return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{statusKey === 'offer1' && typeof onOpenBundleModal === 'function' ? (<div className="relative"><button onClick={(e) => { e.stopPropagation(); onOpenBundleModal('customer'); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Bundle (Kundenansicht)"><Icon d={ICONS.Smartphone} size={16}/></button><button onClick={(e) => { e.stopPropagation(); onOpenBundleModal('admin'); }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white/90 border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center" title="Bundle Admin"><Icon d={ICONS.Lock} size={10}/></button></div>) : null}{image && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={handleImageReset} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}{image && (<button onClick={onClearImage} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eingefügtes Bild entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button data-print-keep="1" onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button data-print-keep="1" onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div>
+                    {followUpInfo && (followUpInfo.date || followUpInfo.time || followUpInfo.reason) ? (
+                        <div className={`mt-3 mb-2 p-3 rounded-xl text-sm relative z-20 ${
+                            status === 'open'
+                                ? 'bg-red-50 border border-red-200'
+                                : status === 'closed'
+                                    ? 'bg-green-50 border border-green-200'
+                                    : 'bg-slate-50 border border-slate-200'
+                        }`}>
+                            <div className={`font-black ${
+                                status === 'open' ? 'text-red-700' : status === 'closed' ? 'text-green-700' : 'text-slate-700'
+                            }`}>Folgetermin</div>
+                            <div className={`${status === 'open' ? 'text-red-900' : status === 'closed' ? 'text-green-900' : 'text-slate-800'} mt-1`}>
+                                <span className="font-bold">{followUpInfo.date || ""}</span>{followUpInfo.time ? <> • <span className="font-bold">{followUpInfo.time}</span></> : null}
+                            </div>
+                            {followUpInfo.reason ? (
+                                <div className={`${status === 'open' ? 'text-red-900' : status === 'closed' ? 'text-green-900' : 'text-slate-800'} mt-1`}>
+                                    <span className="font-bold">Grund:</span> {followUpInfo.reason}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+</div><div className="canvas-lines"></div>{image && (<div className="absolute inset-0 z-20" onPointerDown={isPenMode ? handleInteractionStart : undefined} onPointerMove={isPenMode ? handleInteractionMove : undefined} onPointerUp={isPenMode ? handleInteractionEnd : undefined} onPointerCancel={isPenMode ? handleInteractionEnd : undefined} onPointerLeave={isPenMode ? handleInteractionEnd : undefined} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: isPenMode ? (interactionStateRef.current.mode === 'drag' ? 'grabbing' : interactionStateRef.current.mode === 'scale' ? 'crosshair' : 'grab') : 'default', pointerEvents: isPenMode ? 'auto' : 'none', touchAction: 'none' }}><img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 0.7 }}/></div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
         
         // --- SMALL INPUT CANVAS (Patched with drawing-canvas class) ---
         
@@ -1915,7 +2156,19 @@ const toolRef = useRef('pen');
             const [showAdmin, setShowAdmin] = useState(false);
             const [showStats, setShowStats] = useState(false);
 
-            const handleOpenStats = () => {
+            
+// ===== Bundle IFrame (extern) =====
+const BUNDLE_URL = "https://jefferson990.github.io/Pilot-Verkaufsmappe/"; // <-- hier deinen Bundle-Link eintragen
+const [showBundleModal, setShowBundleModal] = useState(false);
+const [bundleModalUrl, setBundleModalUrl] = useState(BUNDLE_URL);
+
+const openBundleModal = useCallback((mode = 'customer') => {
+    const url = (mode === 'admin') ? `${BUNDLE_URL}#admin` : BUNDLE_URL;
+    setBundleModalUrl(url);
+    setShowBundleModal(true);
+}, [BUNDLE_URL]);
+
+const handleOpenStats = () => {
                 const pw = prompt('Statistik Passwort:');
                 if (pw !== STATS_PASSWORD) { alert('Falsches Passwort'); return; }
                 setShowStats(true);
@@ -1953,6 +2206,7 @@ const [showSkipReasonModal, setShowSkipReasonModal] = useState(false);
 
             const [customerType, setCustomerType] = useState("");
             const [segment, setSegment] = useState("");
+            const [segmentTouched, setSegmentTouched] = useState(false);
             const [providerSelect, setProviderSelect] = useState("");
             const [customProvider, setCustomProvider] = useState("");
             const [isCustomProvider, setIsCustomProvider] = useState(false); 
@@ -1968,6 +2222,59 @@ const [showSkipReasonModal, setShowSkipReasonModal] = useState(false);
             const initialOfferData = { einmalig: 0, monatlich1: 0, monatlich2: 0, einmaligRaw: '', monatlich1Raw: '', monatlich2Raw: '' };
             const [offerData, setOfferData] = useState(initialOfferData);
             const [canvasStatus, setCanvasStatus] = useState({ offer1: 'neutral', offer2: 'neutral', offer3: 'neutral' });
+
+            // === FOLLOW-UP (Folgetermin) Pflicht bei Status "Offen" ===
+            const [followUpsByKey, setFollowUpsByKey] = useState({}); // { [statusKey]: {date,time,reason} }
+            const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+            const [followUpKeys, setFollowUpKeys] = useState([]);
+            const [followUpIndex, setFollowUpIndex] = useState(0);
+            const [followUpDraft, setFollowUpDraft] = useState({ date: "", time: "", reason: "" });
+            const [finishAfterFollowUp, setFinishAfterFollowUp] = useState(false);
+
+            const startFollowUpFlow = (keys) => {
+                setFollowUpKeys(keys);
+                setFollowUpIndex(0);
+                setFollowUpDraft({ date: "", time: "", reason: "" });
+                setFinishAfterFollowUp(true);
+                setShowFollowUpModal(true);
+            };
+
+            const saveCurrentFollowUp = () => {
+                const reasonOk = (followUpDraft.reason || "").trim().length >= 3;
+                if (!followUpDraft.date || !followUpDraft.time || !reasonOk) return;
+
+                const key = followUpKeys[followUpIndex];
+                if (!key) return;
+
+                setFollowUpsByKey(prev => ({ ...prev, [key]: { ...followUpDraft } }));
+
+                const nextIndex = followUpIndex + 1;
+                if (nextIndex >= followUpKeys.length) {
+                    setShowFollowUpModal(false);
+                    setFollowUpKeys([]);
+                    setFollowUpIndex(0);
+
+                    // Continue finish flow
+                    if (finishAfterFollowUp) {
+                        setFinishAfterFollowUp(false);
+                        backgroundAutoUpload({ type: 'abschluss', triggerToast, ensurePrintHeaders, getAgent: getAgentDisplayNameForUpload, getDsl: getDslFlagForUpload });
+                        handlePrint();
+                    }
+                } else {
+                    setFollowUpIndex(nextIndex);
+                    setFollowUpDraft({ date: "", time: "", reason: "" });
+                }
+            };
+
+            const cancelFollowUp = () => {
+                setShowFollowUpModal(false);
+                setFollowUpKeys([]);
+                setFollowUpIndex(0);
+                setFinishAfterFollowUp(false);
+            };
+
+            const isReadyToFinish = Object.values(canvasStatus).every(s => s === 'open' || s === 'closed');
+
             
             const [customerSignature, setCustomerSignature] = useState(null);
             const SHOP_STAMP_TEXT = "o2 Shop Crailsheim";
@@ -2025,6 +2332,16 @@ const fileInputRef = useRef(null);
 
             const triggerToast = (message) => { clearTimeout(toastTimerRef.current); setToastMessage(message); toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000); };
 
+            // ===== Bundle -> Canva 1 (Screenshot/Bild) =====
+            const importBundleToCanva1 = useCallback((dataUrl) => {
+                if (!dataUrl) return;
+                setCanvasImages(prev => ({ ...prev, offer1: dataUrl }));
+                setImageTransform(prev => ({ ...prev, offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 } }));
+                triggerToast('Bundle in Canva 1 übernommen.');
+                // Optional: Modal schließen
+                setShowBundleModal(false);
+            }, [triggerToast]);
+
 
             // ===== Fullscreen Toggle (F11-like) =====
             const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -2059,15 +2376,23 @@ const fileInputRef = useRef(null);
             const handleClearImage = (key) => { setCanvasImages(prev => ({ ...prev, [key]: null })); setImageTransform(prev => ({ ...prev, [key]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild von ${key.toUpperCase()} entfernt.`); };
             
             const requestPrint = useCallback((doPrint) => {
+                // Angebotsgültigkeit nur abfragen, wenn mindestens ein Bereich auf "Offen" steht.
+                const hasOpen = (() => {
+                    try { return Object.values(canvasStatus || {}).includes('open'); } catch(e){ return false; }
+                })();
+
                 const hasText = !!String(getDisplayText('OfferValidUntil') || '').trim();
                 const hasInk = !!(drawnStrokes.offer_valid_until && drawnStrokes.offer_valid_until.length);
-                if (!hasText && !hasInk) {
+
+                // Nur wenn "offen" UND noch kein Datum vorhanden -> Modal zeigen
+                if (hasOpen && !hasText && !hasInk) {
                     pendingPrintRef.current = (typeof doPrint === 'function') ? doPrint : (() => window.print());
-setShowValidityModal(true);
+                    setShowValidityModal(true);
                     return;
                 }
+
                 (typeof doPrint === 'function' ? doPrint : (() => window.print()))();
-            }, [drawnStrokes, getDisplayText]);
+            }, [drawnStrokes, getDisplayText, canvasStatus]);
 
             const downloadPdfBlob = (blob, filename) => {
                 try {
@@ -2130,15 +2455,21 @@ setShowValidityModal(true);
             };
 
 const handleFinishOfferClick = () => {
-                // If signature exists, assume it was already processed as a 'deal', so just print or finish
+                const openKeys = Object.keys(canvasStatus || {}).filter(k => canvasStatus[k] === 'open');
+
+                // Wenn Kunde unterschrieben hat: erst Folgetermine abfragen (falls etwas offen), dann drucken/hochladen
                 if (customerSignature) {
-                    // Abschluss: im Hintergrund als PDF (Print-Look) nach OneDrive (Power Automate) hochladen
+                    if (openKeys.length > 0) {
+                        startFollowUpFlow(openKeys);
+                        return;
+                    }
                     backgroundAutoUpload({ type: 'abschluss', triggerToast, ensurePrintHeaders, getAgent: getAgentDisplayNameForUpload, getDsl: getDslFlagForUpload });
-                    handlePrint(); 
-                } else {
-                    // Open the decision modal
-                    setShowFinishTypeModal(true);
+                    handlePrint();
+                    return;
                 }
+
+                // Ohne Unterschrift: Entscheidung (Papier / PDF / Share) wie bisher
+                setShowFinishTypeModal(true);
             };
 
             const handleFinishTypeSelection = (type) => {
@@ -2568,6 +2899,7 @@ const SHARE_PAGE_WIDTH_PX  = 1122; // Share-safe width (A4 landscape @ 96dpi) //
 const SHARE_PAGE_HEIGHT_PX = 794;
 const SHARE_DOC_WIDTH_PX   = SHARE_PAGE_WIDTH_PX;
 const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safety // extra safety to prevent any right-edge clipping
+const SHARE_OFFSET_Y_PX  = 0; // Share: keep at 0 (prevents page-cut) // Share: pushes PDF content down (px). Increase if top is too tight.
 
     try { if (typeof ensurePrintHeaders === 'function') ensurePrintHeaders(); } catch(e){}
 
@@ -2603,10 +2935,28 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
          html{height:auto;}
          /* Share-Modus: Header sichtbar, keine doppelten Links-Offsets innerhalb der Views */
          .pdf-share-mode .print-page-header{display:flex !important;}
-         /* Share: eigene Seitensteuerung (verhindert Leer-Seiten durch Print-Pagebreaks) */
-         .pdf-share-mode .situation-view-wrapper{break-after:auto !important; page-break-after:auto !important;}
-         .pdf-share-mode .print-offer-view{break-after:auto !important; page-break-after:auto !important;}
-         .pdf-share-mode .share-page{break-after:page; page-break-after:always;}
+         /* Share: eigene Seitensteuerung (verhindert Leer-Seiten durch doppelte Pagebreaks) */
+         body.pdf-share-mode .situation-view-wrapper,
+         body.pdf-share-mode .print-offer-view,
+         body.pdf-share-mode .share-cover,
+         body.pdf-share-mode .share-outro{
+           break-after:auto !important;
+           page-break-after:auto !important;
+         }
+         /* Optional: falls irgendwo legacy page-break-before gesetzt ist */
+         body.pdf-share-mode .situation-view-wrapper,
+         body.pdf-share-mode .print-offer-view,
+         body.pdf-share-mode .share-cover,
+         body.pdf-share-mode .share-outro{
+           break-before:auto !important;
+           page-break-before:auto !important;
+         }
+
+.pdf-share-mode .share-page{break-after:page; page-break-after:always; width:297mm; max-width:297mm; height:210mm; min-height:210mm; max-height:210mm; display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden;}
+         .pdf-share-mode .share-page-header{flex:0 0 16mm; height:16mm; min-height:16mm; max-height:16mm; box-sizing:border-box;}
+         .pdf-share-mode .share-page-content{flex:1 1 auto; min-height:0; height:calc(210mm - 16mm); overflow:hidden; box-sizing:border-box;}
+         .pdf-share-mode .share-cover,.pdf-share-mode .share-outro{height:100% !important; min-height:100% !important; max-height:100% !important; box-sizing:border-box;}
+
          .pdf-share-mode .share-page:last-child{break-after:auto !important; page-break-after:auto !important;}
          .pdf-share-mode .situation-view-wrapper{padding-left: 0px !important; padding-top:0 !important; margin-left:0 !important;}
          .pdf-share-mode .print-offer-view{padding-left:0 !important; padding-top:0 !important; margin-left:0 !important;}
@@ -2655,7 +3005,55 @@ const SHARE_SAFE_SCALE     = 1.0; // keep size; CSS share-mode adds its own safe
            max-width:77mm !important;
          }
 
-         /* ===== Share: Seitenzähler (nur im Share-Iframe) ===== */
+         
+         /* --- FINAL 4-SEITEN SHARE (TEILEN) --- */
+/* Seite 3 (Angebot+Kosten) kompakt halten, damit nichts in eine 5. Seite läuft */
+.pdf-share-mode .print-offer-view{
+  display:flex !important;
+  flex-direction:column !important;
+  zoom:0.78 !important;
+  height:210mm !important;
+  min-height:210mm !important;
+  max-height:210mm !important;
+  overflow:hidden !important;
+}
+.pdf-share-mode .print-offer-view .offer-canvas-container{
+  min-height:420px !important;
+  max-height:420px !important;
+  margin-bottom:8px !important;
+  break-inside:avoid !important;
+}
+.pdf-share-mode .print-offer-view .cost-overview-print{
+  padding:8px 10px !important;
+  margin-top:0 !important;
+  break-inside:avoid !important;
+}
+.pdf-share-mode .cost-grid-years{
+  display:grid !important;
+  grid-template-columns:repeat(3, 1fr) !important;
+  gap:6px !important;
+}
+
+/* Seite 4: Full-Bleed Outro (ohne Header) */
+.pdf-share-mode .share-outro{
+  width:297mm !important;
+  height:210mm !important;
+  padding:0 !important;
+  margin:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  overflow:hidden !important;
+}
+.pdf-share-mode .share-outro .print-page-header{ display:none !important; }
+
+/* Harte Trennung erzwingen (falls irgendwo legacy-breaks fehlen) */
+         .pdf-share-mode .pdf-page-break{
+           break-after:page !important;
+           page-break-after:always !important;
+         }
+
+/* ===== Share: Seitenzähler (nur im Share-Iframe) ===== */
          .pdf-share-mode .share-page{position:relative !important;}
          .pdf-share-mode .share-page-number{
            position:absolute !important;
@@ -2726,13 +3124,62 @@ const makeShareHeader = (titleText) => {
     return h;
 };
 
-const wrapSharePage = (titleText, contentEl) => {
+const wrapSharePage = (titleText, contentEl, opts = {}) => {
     const page = doc.createElement('div');
     page.className = 'share-page';
-    page.style.cssText = 'width:100%;box-sizing:border-box;overflow:hidden;height:auto;';
-    page.appendChild(makeShareHeader(titleText));
-    page.appendChild(contentEl);
+    // WICHTIG: feste A4-Landscape-Seitengröße im Share-PDF (inline wins!)
+    page.style.cssText = 'width:297mm;max-width:297mm;height:210mm;min-height:210mm;max-height:210mm;box-sizing:border-box;overflow:hidden;';
+    const includeHeader = !(opts && opts.includeHeader === false);
+    if (includeHeader) {
+        const header = makeShareHeader(titleText);
+        header.classList.add('share-page-header');
+        page.appendChild(header);
+    }
+
+    const contentWrap = doc.createElement('div');
+    contentWrap.className = 'share-page-content';
+    // Inhalt darf nie "in die nächste Seite laufen"
+    contentWrap.style.cssText = includeHeader
+        ? 'flex:1 1 auto;min-height:0;height:calc(210mm - 16mm);overflow:hidden;box-sizing:border-box;'
+        : 'flex:1 1 auto;min-height:0;height:210mm;overflow:hidden;box-sizing:border-box;';
+    contentWrap.appendChild(contentEl);
+
+    page.appendChild(contentWrap);
     return page;
+};
+
+
+// ===== Share-PDF: Canvas-Inhalte "einbrennen" (Canvas-Bitmap wird beim cloneNode NICHT kopiert) =====
+const bakeCanvasesIntoClone = (srcRoot, cloneRoot) => {
+    try {
+        if (!srcRoot || !cloneRoot) return;
+        const src = Array.from(srcRoot.querySelectorAll('canvas'));
+        const dst = Array.from(cloneRoot.querySelectorAll('canvas'));
+        const n = Math.min(src.length, dst.length);
+        for (let i = 0; i < n; i++) {
+            const sc = src[i];
+            const dc = dst[i];
+            if (!sc || !dc) continue;
+
+            // Versuche Bitmap zu exportieren
+            let dataUrl = null;
+            try { dataUrl = sc.toDataURL('image/png'); } catch(e) { dataUrl = null; }
+            if (!dataUrl || dataUrl.length < 50) continue;
+
+            const img = doc.createElement('img');
+            img.src = dataUrl;
+            img.alt = 'canvas';
+            img.className = (dc.className || '') + ' canvas-baked-image';
+            // Übernimm die wichtigsten Layout-Eigenschaften des Canvas
+            img.style.cssText = (dc.getAttribute('style') || '') + ';' +
+                'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;touch-action:none;';
+            // Canvas im Clone ausblenden, Image darüber legen
+            try { dc.style.visibility = 'hidden'; } catch(e){}
+            try { dc.parentNode && dc.parentNode.insertBefore(img, dc.nextSibling); } catch(e){}
+        }
+    } catch(e) {
+        // silent (Share muss immer funktionieren)
+    }
 };
 
 // Inhalt klonen + Print-Header im Clone entfernen (wir setzen den Header oben im Wrapper)
@@ -2741,8 +3188,13 @@ try { cloneSituation.classList.remove('hidden'); } catch(e){}
 cloneSituation.querySelectorAll('.print-page-header').forEach(n => n.remove());
 cloneSituation.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
 cloneSituation.style.display = 'flex';
-cloneSituation.style.height = 'auto';
-cloneSituation.style.overflow = 'visible';
+cloneSituation.style.height = '100%';
+cloneSituation.style.maxHeight = '100%';
+cloneSituation.style.overflow = 'hidden';
+
+// Canvas-Bitmaps aus dem Original in den Clone übernehmen (wichtig für Share/PDF)
+bakeCanvasesIntoClone(sourceSituation, cloneSituation);
+
 
 // --- Share: COVER + OUTRO (nur beim Teilen, nicht beim Drucken) ---
 const pad2 = (n) => String(n).padStart(2,'0');
@@ -2822,24 +3274,53 @@ const makeOutroContent = () => {
 };
 
 // Cover als erste Seite
-const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent());
+const coverPage = wrapSharePage('Ihre Angebotsmappe', makeCoverContent(), { includeHeader: false });
 stage.appendChild(coverPage);
 
 const page1 = wrapSharePage('Ihre Aktuelle Situation', cloneSituation);
 stage.appendChild(page1);
 
-const cloneOffer = sourceOffer.cloneNode(true);
-cloneOffer.querySelectorAll('.print-page-header').forEach(n => n.remove());
-cloneOffer.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
-cloneOffer.style.display = 'block';
-cloneOffer.style.height = 'auto';
-cloneOffer.style.overflow = 'visible';
+// Angebot klonen (FINAL v7: Kostenübersicht wandert auf Seite 4 nach ganz oben)
+const cloneOfferAll = sourceOffer.cloneNode(true);
+cloneOfferAll.querySelectorAll('.print-page-header').forEach(n => n.remove());
+cloneOfferAll.querySelectorAll('#pdf-share-overlay,.print-hide-toast').forEach(n => n.remove());
+cloneOfferAll.style.display = 'block';
+cloneOfferAll.style.height = '100%';
+cloneOfferAll.style.maxHeight = '100%';
+cloneOfferAll.style.overflow = 'hidden';
 
-const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOffer);
+// Canvas-Bitmaps aus dem Original in den Clone übernehmen (wichtig für Share/PDF)
+bakeCanvasesIntoClone(sourceOffer, cloneOfferAll);
+
+
+// ✅ Kostenübersicht aus Seite 3 entfernen und für Seite 4 aufheben
+let costBlock = null;
+try {
+    costBlock = cloneOfferAll.querySelector('.cost-overview-print');
+    if (costBlock) costBlock.remove();
+} catch(e){}
+
+// Seite 3: Angebot OHNE Kosten
+const page2 = wrapSharePage('Ihr Persönliches Angebot', cloneOfferAll);
 stage.appendChild(page2);
 
-// Outro als letzte Seite
-const outroPage = wrapSharePage('Danke & Bonus', makeOutroContent());
+// Seite 4: Kostenübersicht & Abschluss ganz oben + danach der blaue Bereich
+const outroContentWrap = doc.createElement('div');
+outroContentWrap.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;gap:16px;box-sizing:border-box;overflow:hidden;';
+
+if (costBlock) {
+    // Kostenblock oben (weiß), kompakt und ohne Umbruch
+    costBlock.style.display = 'block';
+    costBlock.style.breakInside = 'avoid';
+    costBlock.style.pageBreakInside = 'avoid';
+    costBlock.style.margin = '0';
+    outroContentWrap.appendChild(costBlock);
+}
+
+outroContentWrap.appendChild(makeOutroContent());
+
+// Outro als letzte Seite (ohne Header)
+const outroPage = wrapSharePage('Danke & Bonus', outroContentWrap, { includeHeader: false });
 stage.appendChild(outroPage);
 
 // ===== Share: Seitenzähler „Seite X / N“ (nur beim Teilen) =====
@@ -3110,8 +3591,17 @@ const handlePDFShare = async () => {
                     <TechModal isOpen={showTechModal} onClose={() => toggleTech(false)} />
                     <RoamingModal isOpen={showRoamingModal} onClose={() => setShowRoamingModal(false)} />
                     <QuestionModal isOpen={!!activeCategory && !showAdmin} onClose={() => setActiveCategory(null)} category={activeCategory} question={getCurrentQuestion()} onNextQuestion={handleNextQuestion} />
-                    <ReferralModal isOpen={showReferralModal} onClose={() => setShowReferralModal(false)} onPrint={handlePrint} />
+                    <ReferralModal isOpen={showReferralModal} onClose={(mode) => {
+                        setShowReferralModal(false);
+                        if (mode === 'cancel') {
+                            try { setCustomerSignature(null); } catch(e) {}
+                            // Angebotsgültigkeit zurücksetzen (Text + Stift), damit beim nächsten Druck sauber neu gesetzt werden kann
+                            try { setTextData(prev => ({ ...prev, OfferValidUntil: '' })); } catch(e) {}
+                            try { setDrawnStrokes(prev => ({ ...prev, offer_valid_until: [] })); } catch(e) {}
+                        }
+                    }} onPrint={handlePrint} />
                     <FinishTypeModal isOpen={showFinishTypeModal} onClose={() => setShowFinishTypeModal(false)} onSelect={handleFinishTypeSelection} />
+                    <FollowUpModal isOpen={showFollowUpModal} onCancel={cancelFollowUp} onSave={saveCurrentFollowUp} followUpDraft={followUpDraft} setFollowUpDraft={setFollowUpDraft} currentLabel={getStaticLabel(followUpKeys[followUpIndex] || '')} stepInfo={followUpKeys.length ? `${followUpIndex+1}/${followUpKeys.length}` : ''} />
 
                     <OfferValidityModal
                         isOpen={showValidityModal}
@@ -3132,8 +3622,8 @@ const handlePDFShare = async () => {
                     />
 
 
-                    <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} />
-                    <AdminModal isOpen={showAdmin} onClose={()=>setShowAdmin(false)} questions={questionsData} onUpdate={handleUpdateQuestions} oneDriveLink={oneDriveLink} onUpdateLink={setOneDriveLink} />
+                    <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} /> <BundleModal isOpen={showBundleModal} onClose={() => setShowBundleModal(false)} url={bundleModalUrl} onImportToCanvas={importBundleToCanva1} triggerToast={triggerToast} />
+<AdminModal isOpen={showAdmin} onClose={()=>setShowAdmin(false)} questions={questionsData} onUpdate={handleUpdateQuestions} oneDriveLink={oneDriveLink} onUpdateLink={setOneDriveLink} />
                     <StatsModal isOpen={showStats} onClose={()=>setShowStats(false)} />
                     
                     <ImagePlacementModal isOpen={isImageSelectModalOpen} onClose={() => setIsImageSelectModalOpen(false)} onPlace={handleImagePlacement} imageName={currentImagePayload?.name || 'Datei'} />
@@ -3212,7 +3702,7 @@ const handlePDFShare = async () => {
 
                         <aside className="w-[280px] xl:w-[300px] min-w-[280px] bg-[#f0f6ff] p-3 shrink-0 hidden md:flex flex-col border-l border-slate-200 z-10 h-full overflow-hidden">
                             <div className="flex-1 flex flex-col min-h-0 gap-2 overflow-y-auto custom-scrollbar">
-                                <SectionCard title="Stammdaten" className="shrink-0 flex flex-col"><div className="grid grid-cols-2 gap-2 mb-2 shrink-0"><div className="relative h-8"><select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${customerType === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Kundentyp *</option><option value="Neukunde">Neukunde</option><option value="Bestandskunde">Bestandskunde</option></select></div><div className="relative h-8"><select value={segment} onChange={(e) => setSegment(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${segment === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Segment *</option><option value="Privatkunde">Privatkunde</option><option value="Geschäftskunden">Geschäftskunden</option><option value="Vertragsverlängerung">Vertragsverlängerung</option><option value="Junge Leute">Junge Leute</option><option value="Bestes Alter">Bestes Alter</option></select></div></div><div className="relative w-full h-16 border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center shrink-0 small-input-fixed"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20"><button onClick={() => setEmailMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{emailMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button></div>{emailMode === 'keyboard' ? (<input type="text" value={emailText} onChange={(e) => setEmailText(e.target.value)} placeholder="E-Mail Adresse" className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-10" />) : (<><canvas ref={emailCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, emailCanvasRef, 'email')} onPointerMove={(e) => draw(e, emailCanvasRef, 'email')} onPointerUp={(e) => stopDrawing(e, emailCanvasRef)} onPointerLeave={(e) => stopDrawing(e, emailCanvasRef)} /><button onClick={() => clearCanvas(emailCanvasRef, 'email')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div></SectionCard>
+                                <SectionCard title="Stammdaten" className="shrink-0 flex flex-col"><div className="grid grid-cols-2 gap-2 mb-2 shrink-0"><div className="relative h-8"><select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${customerType === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Kundentyp *</option><option value="Neukunde">Neukunde</option><option value="Bestandskunde">Bestandskunde</option></select></div><div className="relative h-8"><select value={segment} onChange={(e) => { setSegment(e.target.value); setSegmentTouched(true); }} className={`w-full h-full bg-slate-50 border rounded-lg pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${segmentTouched ? "border-l-green-500" : "border-l-red-500"}`}><option value="" disabled hidden>Segment *</option><option value="Neuvertrag">Neuvertrag</option><option value="Vertragsverlängerung">Vertragsverlängerung</option><option value="Junge Leute">Junge Leute</option><option value="Bestes Alter">Bestes Alter</option></select></div></div><div className="relative w-full h-16 border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center shrink-0 small-input-fixed"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20"><button onClick={() => setEmailMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{emailMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button></div>{emailMode === 'keyboard' ? (<input type="text" value={emailText} onChange={(e) => setEmailText(e.target.value)} placeholder="E-Mail Adresse" className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-10" />) : (<><canvas ref={emailCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair z-10 drawing-canvas" style={{ touchAction: 'none' }} onPointerDown={(e) => startDrawing(e, emailCanvasRef, 'email')} onPointerMove={(e) => draw(e, emailCanvasRef, 'email')} onPointerUp={(e) => stopDrawing(e, emailCanvasRef)} onPointerLeave={(e) => stopDrawing(e, emailCanvasRef)} /><button onClick={() => clearCanvas(emailCanvasRef, 'email')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div></SectionCard>
                                 <SectionCard title="Technische Situation" className="shrink-0 flex flex-col"><div className="relative mb-2 w-full h-8 shrink-0">{!isCustomProvider ? (<select value={providerSelect} onChange={(e) => { if (e.target.value === 'Sonstiges') { setIsCustomProvider(true); setProviderSelect('Sonstiges'); } else { setProviderSelect(e.target.value); setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); } }} className={`w-full h-full bg-slate-50 border rounded-md pl-2 pr-6 text-[10px] font-medium text-slate-700 focus:ring-1 outline-none border-l-4 ${providerSelect === "" ? "border-l-red-500" : "border-l-green-500"}`}><option value="" disabled hidden>Derzeitiger DSL-Anbieter *</option><option value="Telekom">Telekom</option><option value="1&1">1&1</option><option value="Vodafone">Vodafone</option><option value="O2">O2</option><option value="Sonstiges">Sonstiges / Eingabe</option></select>) : (<div className="relative w-full h-full border border-slate-200 rounded-md bg-white overflow-hidden group flex items-center border-l-4 border-l-green-500"><div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex gap-1"><button onClick={() => setProviderMode(prev => prev === 'keyboard' ? 'pen' : 'keyboard')} className="p-1 hover:bg-slate-100 rounded text-slate-400">{providerMode === 'keyboard' ? <Icon d={ICONS.Pen} size={10}/> : <Icon d={ICONS.Keyboard} size={10}/>}</button><button onClick={() => { setIsCustomProvider(false); setWlanRecommendation(''); setSpeedRecommendation(''); setProviderSelect(''); setCustomProvider(''); }} className="p-1 hover:bg-slate-100 rounded text-slate-400" title="Zurück zur Liste"><Icon d={ICONS.List} size={10}/></button></div>{providerMode === 'keyboard' ? (<input type="text" value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Anbieter..." className="w-full h-full px-3 text-[10px] focus:outline-none bg-transparent pr-16" autoFocus />) : (<><canvas ref={providerCanvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onPointerDown={(e) => startDrawing(e, providerCanvasRef, 'provider')} onPointerMove={(e) => draw(e, providerCanvasRef, 'provider')} onPointerUp={(e) => stopDrawing(e, providerCanvasRef)} onPointerLeave={(e) => stopDrawing(e, providerCanvasRef)} /><button onClick={() => clearCanvas(providerCanvasRef, 'provider')} className="absolute top-1/2 right-1 -translate-y-1/2 p-1 hover:bg-slate-100 rounded text-slate-400 z-30" title="Löschen"><Icon d={ICONS.Trash} size={10}/></button></>)}</div>)}</div>{wlanRecommendation && (<div className="w-full mb-2 p-2 bg-white border border-blue-100 rounded-lg"><div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Empfehlung (WLAN)</div><div className="text-[11px] font-bold text-slate-700 leading-snug whitespace-pre-wrap">{wlanRecommendation}</div></div>)}<button onClick={() => setShowWlanModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors shrink-0"><Icon d={ICONS.Wifi} size={14} className="text-slate-500" /> WLAN-Planer öffnen</button></SectionCard>
                                 <SectionCard title="Technologie & Speed" className="shrink-0 flex flex-col"><div className="space-y-1 flex flex-col justify-center h-full"><button onClick={() => setShowTechModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Zap} size={14} className="text-slate-500" /> Technologie-Check</button><button onClick={() => setShowSpeedModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Gauge} size={14} className="text-slate-500" /> Speed-Rechner</button></div>{speedRecommendation && (<div className="w-full mt-2 p-2 bg-white border border-blue-100 rounded-lg"><div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Empfehlung (Speed)</div><div className="text-[11px] font-bold text-slate-700 leading-snug whitespace-pre-wrap">{speedRecommendation}</div></div>)}</SectionCard>
                                 <SectionCard title="Roaming" className="shrink-0 flex flex-col print-hide-roaming"><div className="flex-1 flex items-center"><button onClick={() => setShowRoamingModal(true)} className="w-full h-8 bg-slate-100 text-left px-3 rounded-md text-[10px] font-bold text-slate-700 flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors"><Icon d={ICONS.Globe} size={14} className="text-slate-500" /> Roaming Check</button></div></SectionCard>
@@ -3224,7 +3714,7 @@ const handlePDFShare = async () => {
                     <div className={`flex-1 w-full relative bg-[#f0f6ff] ${view === 'offer' ? 'flex overflow-y-auto' : 'hidden'} print-offer-view`}>
                         <div className="w-full flex-1 flex flex-col space-y-6 min-h-0 p-4 md:p-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full offer-print-grid"> 
-                                {[{ key: 'offer1', icon: ICONS.Smartphone, labelKey: 'Offer1Title', ref: offerCanvasRef1, scaleRef: scaleRef1 }, { key: 'offer2', icon: ICONS.Users, labelKey: 'Offer2Title', ref: offerCanvasRef2, scaleRef: scaleRef2 }, { key: 'offer3', icon: ICONS.Router, labelKey: 'Offer3Title', ref: offerCanvasRef3, scaleRef: scaleRef3 }].map(({ key, icon, labelKey, ref, scaleRef }) => (<OfferCanvas key={key} canvasRef={ref} icon={icon} label={getStaticLabel(labelKey)} statusKey={key} status={canvasStatus[key]} setStatus={setCanvasStatus} inputMode={inputMode} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} textValue={getDisplayText(key)} handleTextChange={handleTextChange} textStyle={textStyle} textSize={textSize} imageTransform={imageTransform[key]} onUpdateImageTransform={handleUpdateImageTransform} drawnStrokes={drawnStrokes[key]} setDrawnStrokes={(newStrokes) => setDrawnStrokes(prev => ({ ...prev, [key]: newStrokes }))} scaleRef={scaleRef} triggerRedraw={redrawCounter} image={canvasImages[key]} onClearImage={() => handleClearImage(key)}/>))}
+                                {[{ key: 'offer1', icon: ICONS.Smartphone, labelKey: 'Offer1Title', ref: offerCanvasRef1, scaleRef: scaleRef1 }, { key: 'offer2', icon: ICONS.Users, labelKey: 'Offer2Title', ref: offerCanvasRef2, scaleRef: scaleRef2 }, { key: 'offer3', icon: ICONS.Router, labelKey: 'Offer3Title', ref: offerCanvasRef3, scaleRef: scaleRef3 }].map(({ key, icon, labelKey, ref, scaleRef }) => (<OfferCanvas key={key} canvasRef={ref} icon={icon} label={getStaticLabel(labelKey)} statusKey={key} status={canvasStatus[key]} setStatus={setCanvasStatus} followUpInfo={followUpsByKey[key]} inputMode={inputMode} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} textValue={getDisplayText(key)} handleTextChange={handleTextChange} textStyle={textStyle} textSize={textSize} imageTransform={imageTransform[key]} onUpdateImageTransform={handleUpdateImageTransform} drawnStrokes={drawnStrokes[key]} setDrawnStrokes={(newStrokes) => setDrawnStrokes(prev => ({ ...prev, [key]: newStrokes }))} scaleRef={scaleRef} triggerRedraw={redrawCounter} image={canvasImages[key]} onClearImage={() => handleClearImage(key)} onOpenBundleModal={openBundleModal} />))}
                             </div>
 
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
@@ -3287,7 +3777,11 @@ const handlePDFShare = async () => {
                         {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
-                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{customerSignature ? 'Vertrag drucken' : 'Fertigstellen'} {customerSignature ? <Icon d={ICONS.Print} size={18}/> : <Icon d={ICONS.CheckCircle} size={18}/>}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
+                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} disabled={!isReadyToFinish}  className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${
+                    (!isReadyToFinish)
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        : (customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700')
+                } text-white`}>{customerSignature ? 'Vertrag abschließen' : 'Fertigstellen'}</button></div></div></div>)}</div><input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*, application/pdf" capture="environment" hidden aria-label="Datei auswählen oder Kamera öffnen"/></div>);
         }
 
             // --- PRINT: pro Seite einen eigenen Header einfügen (ohne Screen-Layout zu ändern) ---
