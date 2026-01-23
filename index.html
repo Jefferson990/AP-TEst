@@ -45,11 +45,69 @@
         .beam-anim { animation: beam 1.5s linear infinite; }
 
         /* General Layout */
-        html, body, #root { 
-        min-width: 297mm !important;
-width: 100%; height: 100%; margin: 0; overflow: hidden; background-color: #f0f6ff; }
+        /* General Layout */
+/* Screen/layout MUST be fluid (fix for Android/Tablet Fullscreen clipping).
+   Print/PDF keeps its fixed A4-landscape widths inside @media print / pdf-share-mode blocks. */
+html, body, #root{
+  min-width: 0 !important;          /* important: remove 297mm hard-lock on screen */
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;    /* avoid horizontal scrollbars */
+  overflow-y: hidden !important;    /* keep original no-scroll behavior */
+  background-color: #f0f6ff !important;
+  box-sizing: border-box;
+}
+/* Ensure nothing forces a wider-than-viewport layout in fullscreen */
+#root{ max-width: 100vw !important; }
+
+/* === FULLSCREEN/ROTATE: prevent canvas distortion === */
+.drawing-canvas{ width:100% !important; height:100% !important; }
+
+
         
-        /* Canvas Layer: touch-action none is crucial for pen handling */
+        
+
+/* ===== EXPORT/PRINT COLOR SAFETY (satte Farben, kein transparenter Hintergrund) ===== */
+body.pdf-share-mode,
+body.pdf-share-mode *{
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+}
+
+/* =====================================================
+   PRINT PATCH v15 – Seite 1 Canvas breiter
+   Nutzt den bisher freien rechten Rand (rot markiert)
+   ===================================================== */
+@media print {
+  /* Gesamter Seiten-Wrapper von Seite 1 */
+  .print-situation-view {
+      padding-right: 6mm !important;
+  }
+
+  /* Zentrale Zeichen-/Inhaltsfläche auf Seite 1 */
+  .print-situation-view .canvas,
+  .print-situation-view .canvas-area,
+  .print-situation-view .situation-canvas,
+  .print-situation-view .content-area {
+      max-width: calc(100% + 6mm) !important;
+  }
+}
+body.pdf-share-mode{
+    background-color:#ffffff !important;
+}
+body.pdf-share-mode .canvas-image{
+    opacity:1 !important;
+    -webkit-filter:none !important;
+    filter:none !important;
+}
+/* Auch außerhalb von Print: niemals transparent exportieren */
+html, body{
+    background-color: #f0f6ff;
+}
+/* Canvas Layer: touch-action none is crucial for pen handling */
         .canvas-layer { pointer-events: auto; touch-action: none; }
         .input-layer { pointer-events: auto; z-index: 30; }
         
@@ -153,12 +211,21 @@ width: 100%; height: 100%; margin: 0; overflow: hidden; background-color: #f0f6f
     }
 html, body {
         width: 100% !important;
+        min-width: 1120px !important;
         height: auto !important;
         overflow: visible !important;
         margin: 0 !important;
         padding: 0 !important;
         background: #ffffff !important;
     }
+
+    /* Bilder in Canva-Bereichen nie durchsichtig drucken */
+    .canvas-image, .canvas-images*{
+        opacity: 1 !important;
+        -webkit-filter: none !important;
+        filter: none !important;
+    }
+
 
     /* Globalen Header im Print ausblenden (wir erzeugen pro Seite einen Print-Header) */
     header { display: none !important; }
@@ -232,10 +299,19 @@ html, body {
     #root {
         display: block !important;
         width: 100% !important;
+        min-width: 1120px !important;
         height: auto !important;
         overflow: visible !important;
-        background: transparent !important;
+        background: #ffffff !important;
     }
+
+    /* Bilder in Canva-Bereichen nie durchsichtig drucken */
+    .canvas-image, .canvas-images*{
+        opacity: 1 !important;
+        -webkit-filter: none !important;
+        filter: none !important;
+    }
+
 
     /* -------- Seite 1: Situation (voll sichtbar) -------- */
     .situation-view-wrapper {
@@ -248,13 +324,20 @@ html, body {
         opacity: 1 !important;
         position: relative !important;
 
-        width: 1060px !important;
-        max-width: 1060px !important;
+        /* FIX: Breite auf 100% des Papiers setzen statt 1120px */
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+
+        /* FIX (v12): Keine vertikale Komprimierung auf Seite 1.
+           Statt "zoom" (skaliert X+Y und schiebt alles nach oben) nutzen wir nur eine X-Skalierung,
+           damit rechts nichts abgeschnitten wird, aber die Hoehe/Position optisch gleich bleibt. */
+        zoom: 1 !important;
+        transform: scaleX(0.92) !important;
+        transform-origin: top left !important;
+
         height: auto !important;
         overflow: visible !important;
-
-        /* kein Screen-Zoom/Scale im Druck */
-        zoom: 1 !important;
 
         break-after: page !important;
         page-break-after: always !important;
@@ -262,7 +345,10 @@ html, body {
         margin: 0 !important;
         padding: 0 !important;
         padding-left: 0px !important; /* Safe-Shift für links (Print + Share identisch) */
-        background: transparent !important;
+        /* Seite 1 im Print wie Seite 2: hellblauer Seitenhintergrund */
+        background: #eff6ff !important;
+        background-color: #eff6ff !important;
+        box-shadow: inset 0 0 0 1000px #eff6ff !important;
     }
 
     /* Print-Header soll volle Breite oben einnehmen */
@@ -271,22 +357,49 @@ html, body {
         max-width: 100% !important;
         width: 100% !important;
         order: 0 !important;
+        /* Seite 1 Header wie Seite 2: weiße, abgerundete Header-Kapsel */
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        box-shadow: inset 0 0 0 1000px #ffffff !important;
+    }
+
+    /* FIX: Linke Label-Spalte (w-[30%]) = hellblau wie Seite 2 */
+    .situation-view-wrapper [class*="w-[30%]"]{
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+
+        background: #eff6ff !important;
+        background-color: #eff6ff !important;
+        box-shadow: inset 0 0 0 1000px #eff6ff !important;
+    }
+
+    /* Falls Tailwind-Klassen auf der linken Spalte andere Farben setzen, trotzdem blau erzwingen */
+    .situation-view-wrapper [class*="w-[30%]"][class*="bg-slate-100"],
+    .situation-view-wrapper [class*="w-[30%]"][class*="bg-blue-50"],
+    .situation-view-wrapper [class*="w-[30%]"][class*="bg-white"]{
+        background: #eff6ff !important;
+        background-color: #eff6ff !important;
+        box-shadow: inset 0 0 0 1000px #eff6ff !important;
     }
 
     /* Main (Links+Mitte) = 80% */
     .situation-view-wrapper > div.flex-1.flex.items-stretch {
-        flex: 0 0 760px !important;
-        max-width: 760px !important;
-        width: 760px !important;
+        
+        /* Sicherstellen, dass die Spalten innerhalb flexibel bleiben */
+        flex: 1 1 auto !important;
+        width: 74% !important; /* Haupttabelle bekommt ca. 3/4 des Platzes */
+        max-width: 74% !important;
         order: 1 !important;
     }
 
     /* Rechte Sidebar = 20% (im Print sichtbar) */
     .situation-view-wrapper > aside {
+        
         display: flex !important;
-        flex: 0 0 280px !important;
-        max-width: 280px !important;
-        width: 280px !important;
+        flex: 0 0 26% !important; /* Sidebar bekommt ca. 1/4 */
+        width: 26% !important;
+        max-width: 26% !important;
         min-width: 0 !important;
         height: auto !important;
         overflow: visible !important;
@@ -344,8 +457,34 @@ html, body {
 
     /* Karten-Hintergründe erzwingen */
     .bg-white { background-color: #ffffff !important; }
-    .bg-slate-100 { background-color: #f1f5f9 !important; }
-    .bg-blue-50 { background-color: #eff6ff !important; }
+    .bg-slate-100 {
+        background-color: #f1f5f9 !important;
+        box-shadow: inset 0 0 0 1000px #f1f5f9 !important;
+    }
+    .bg-blue-50 {
+        background-color: #eff6ff !important;
+        box-shadow: inset 0 0 0 1000px #eff6ff !important;
+    }
+
+    /* === HARD-FIX (Chrome/Edge): Wenn "Hintergrundgrafiken" im Druckdialog AUS ist,
+       werden reine background-colors oft nicht gedruckt.
+       Lösung: Wir legen im Printmodus ein SVG-IMG als Layer unter den Inhalt (Bilder drucken immer).
+       JS injiziert dieses IMG dynamisch in alle .bg-blue-50 / .bg-slate-100 Container.
+    */
+    .print-bg-host { position: relative !important; }
+    .print-bg-host > img.print-bg-img-layer {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+    }
+    .print-bg-host > :not(img.print-bg-img-layer) {
+        position: relative !important;
+        z-index: 1 !important;
+    }
 
     /* -------- Seite 2: Angebot (voll sichtbar) -------- */
     .print-offer-view {
@@ -354,7 +493,9 @@ html, body {
         opacity: 1 !important;
         position: relative !important;
 
-        width: 100% !important;
+        width: 1120px !important;
+        max-width: 1120px !important;
+        min-width: 1120px !important;
         height: auto !important;
         overflow: visible !important;
 
@@ -362,7 +503,10 @@ html, body {
 
         margin: 0 !important;
         padding: 0 !important;
-        background: transparent !important;
+        /* FIX: Seite 2 IMMER hellblau im Print */
+        background: #eff6ff !important;
+        background-color: #eff6ff !important;
+        box-shadow: inset 0 0 0 1000px #eff6ff !important;
     }
 
     .print-offer-view .overflow-hidden,
@@ -380,6 +524,14 @@ html, body {
         border-style: solid !important;
         background: #ffffff !important;
     }
+
+    /* Bilder in Canva-Bereichen nie durchsichtig drucken */
+    .canvas-image, .canvas-images*{
+        opacity: 1 !important;
+        -webkit-filter: none !important;
+        filter: none !important;
+    }
+
 
     /* Fallback: erzwinge Status-Rahmenfarben im Print (falls Tailwind-Utilities im Print nicht greifen) */
     .print-offer-view .offer-canvas-container.border-red-500{ border-color:#ef4444 !important; }
@@ -686,7 +838,108 @@ body.pdf-share-mode .share-page:last-child{
   page-break-after:auto !important;
   break-after:auto !important;
 }
+
+
+    /* ===== PRINT: Seite 2 Canvas-Mehrplatz Patch v1 ===== */
+    /* Farben/Hintergründe im Druck erzwingen */
+    *{
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    /* Seite 2: Hintergrund wieder aktiv (falls transparent/weiß) */
+    .print-offer-view{
+        background: #f0f6ff !important;
+    }
+
+    /* "Kostenübersicht & Abschluss" vertikal stauchen (Breite bleibt gleich) */
+    .situation-view-wrapper aside .bg-white.rounded-xl.p-4.shadow-sm{
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+        margin-top: auto !important;
+        transform: none !important;
+    }
+
+    .situation-view-wrapper aside h3{
+        margin: 0 0 4px 0 !important;
+        padding: 0 !important;
+        font-size: 0.85rem !important;
+        line-height: 1.1 !important;
+    }
+
+    .cost-grid-years{
+        gap: 3px !important;
+    }
+    .cost-grid-years > div{
+        padding: 2px 4px !important;
+        font-size: 0.75rem !important;
+        line-height: 1.05 !important;
+    }
+
+    .situation-view-wrapper aside input,
+    .situation-view-wrapper aside select{
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        height: 26px !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* Canvas 1/2/3 sollen den gewonnenen Platz nach unten nutzen */
+    .situation-view-wrapper > aside{
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        height: 100% !important;
+    }
+
+    .situation-view-wrapper aside .flex.flex-col.gap-4{
+        gap: 8px !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+
+    .offer-canvas-container{
+        flex: 1 1 auto !important;
+        min-height: 320px !important;
+        margin-bottom: 6px !important;
+    }
+
+
+
+    /* ================================
+       PRINT PATCH: Kostenblock in Seite 2 nach UNTEN schieben
+       (Breite bleibt gleich)
+       ================================ */
+    .situation-view-wrapper > aside{
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important; /* Canvas oben, Kosten unten via margin-top:auto */
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    /* Canvas-Stack soll den Raum oben füllen */
+    .situation-view-wrapper > aside .flex.flex-col.gap-4{
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+
+    /* Kostenübersicht-Block (weiße Karte) an den unteren Rand */
+    .situation-view-wrapper > aside .bg-white.rounded-xl.p-4.shadow-sm{
+        margin-top: auto !important;
+        order: 99 !important;
+    }
+
+    /* Canvas-Container: bleiben oberhalb, dürfen wachsen */
+    .offer-canvas-container{
+        order: 1 !important;
+        flex: 1 1 auto !important;
+        min-height: 300px !important;
+    }
 }
+
 
 
     /* ===== PRINT ONLY: Stammdaten (Kundentyp + Segment) untereinander & volle Breite ===== */
@@ -823,7 +1076,343 @@ body.pdf-share-mode .share-page:last-child{
   overflow: visible !important;
 }
 
+
+
+    /* ================================
+       FINAL PRINT PATCH (Chrome + Edge):
+       Seite 2 (Ihre Aktuelle Situation)
+       - definierte Seitenhoehe, damit "unten" existiert
+       - Kostenblock wirklich nach unten + 30px tiefer
+       - Breiten bleiben unveraendert
+       ================================ */
+    @media print {
+      /* Seite 2: Unten definieren */
+      .situation-view-wrapper{
+        height: 190mm !important;
+        min-height: 190mm !important;
+        overflow: visible !important;
+      }
+
+      /* Rechte Spalte nutzt volle Hoehe */
+      .situation-view-wrapper > aside{
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+      }
+
+      /* Canvas-Stack fuellt den Raum oberhalb der Kosten */
+      .situation-view-wrapper aside .flex.flex-col.gap-4{
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+      }
+
+      /* Kostenblock: ganz nach unten + extra 30px tiefer */
+      .situation-view-wrapper aside .bg-white.rounded-xl.p-4.shadow-sm{
+        margin-top: auto !important;
+        margin-bottom: -30px !important;
+        overflow: visible !important;
+        transform: none !important; /* transform wird im Print oft ignoriert */
+      }
+    }
+
+/* ===== PRINT PATCH: rechte Padding-Freigabe Seite 1 ===== */
+@media print {
+  .print-situation-view {
+    padding-right: 0mm !important; /* vorher 6mm -> volle Breite */
+  }
+}
+
+
+
+/* =====================================================
+   PRINT PATCH v30 – Chrome: enforce 2 pages (tighter scale)
+   ===================================================== */
+@media print{
+  /* Make offer page slightly smaller in Chrome so it never spills to an extra page */
+  .print-offer-view{
+    zoom: 0.76 !important; /* was 0.80-ish in Chrome */
+    transform-origin: top left !important;
+  }
+
+  /* Prevent Kostenübersicht block from being pushed to a new page */
+  .grid.grid-cols-2.gap-4.mt-6{
+    margin-top: 0.5rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Reduce excessive vertical padding in offer page (Chrome is sensitive) */
+  .p-6.space-y-6{
+    padding: 1rem !important;
+  }
+}
+
+
+        /* === PORTRAIT TABLET/MOBILE: Stack canvases vertically regardless of width === */
+        @media (orientation: portrait){
+            .offer-print-grid{
+                display: flex !important;
+                flex-direction: column !important;
+                grid-template-columns: none !important;
+                overflow-y: auto !important;
+            }
+            .offer-print-grid > div{
+                width: 100% !important;
+            }
+            /* Make sure the cost section is not sticky/fixed in portrait */
+            .cost-overview-print{
+                position: static !important;
+                bottom: auto !important;
+            }
+        }
+
+
+/* ================================
+   RESPONSIVE FIX (Portrait / schmale Displays):
+   Verhindert "rechts abgeschnitten" in Hochformat,
+   indem Sidebar unter den Inhalt stapelt.
+   ================================ */
+@media (max-width: 1024px){
+  .situation-view-wrapper{
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  /* Hauptbereich (links + Canvas) auf volle Breite */
+  .situation-view-wrapper > div{
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* Sidebar unten statt rechts */
+  .situation-view-wrapper > aside{
+    display: flex !important;        /* überschreibt Tailwind "hidden" auf Mobile */
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: 45vh !important;     /* bleibt bedienbar */
+    overflow: auto !important;
+    border-left: none !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin-top: 10px !important;
+  }
+}
+
+
+
+
+
+
+  /* Mittelgroße Tablets */
+  @media (min-width: 700px) and (max-width: 899px) {
+    .situation-view-wrapper,
+    .print-situation-view,
+    .print-offer-view { margin-left: -24px !important; }
+  }
+
+  /* Kleine Tablets & große Phones */
+  @media (max-width: 699px) {
+    .situation-view-wrapper,
+    .print-situation-view,
+    .print-offer-view { margin-left: -30px !important; }
+  }
+
+  .situation-view-wrapper .grid,
+  .print-offer-view .grid {
+    margin-left: -12px !important;
+  }
+}
+
+
+/* === SMART Portrait Pixel-Fix (Auto) ===
+   Berechnet eine dynamische Linksverschiebung per CSS-Variable
+   -> nutzt linken Platz
+   -> verhindert Abschneiden rechts
+*/
+:root{
+  --PORTRAIT_SHIFT_PX: 0px;
+}
+@media (orientation: portrait){
+  .situation-view-wrapper,
+  .print-situation-view,
+  .print-offer-view{
+    transform: translateX(var(--PORTRAIT_SHIFT_PX)) !important;
+    will-change: transform;
+  }
+  /* Formulare etwas weiter links (wie vorher) */
+  .situation-view-wrapper .grid,
+  .print-offer-view .grid{
+    margin-left: -12px !important;
+  }
+}
+
+
+/* === PORTRAIT SMART SHIFT (AUTO) ===
+   Schiebt im Hochformat automatisch nach links, NUR wenn rechts etwas abgeschnitten wird.
+   Die JS-Logik setzt --PORTRAIT_SHIFT_PX dynamisch (z.B. -18px / -24px / -30px).
+*/
+:root{ --PORTRAIT_SHIFT_PX: 0px; }
+
+@media (orientation: portrait){
+  .situation-view-wrapper,
+  .print-situation-view,
+  .print-offer-view{
+    margin-left: var(--PORTRAIT_SHIFT_PX) !important;
+  }
+}
+
+
+
+/* ================================================
+   FULLSCREEN LANDSCAPE FIX
+   Verhindert Rechts-Abschneiden im Vollbildmodus
+   (nur Landscape + breite Viewports)
+   ================================================ */
+:root{
+  --FULLSCREEN_SHIFT_X: -26px;   /* Feintuning: -18px bis -32px möglich */
+}
+@media (orientation: landscape) and (min-width: 1100px){
+  .situation-view-wrapper,
+  .print-situation-view,
+  .print-offer-view{
+    transform: translateX(var(--FULLSCREEN_SHIFT_X)) !important;
+    will-change: transform;
+  }
+  .situation-view-wrapper .grid,
+  .print-offer-view .grid{
+    margin-left: calc(var(--FULLSCREEN_SHIFT_X) * 0.5) !important;
+  }
+}
+
+/* === PRINT HARD FIX: FORCE A4 LANDSCAPE (NO LETTER) === */
+@media print {
+
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html, body {
+    width: 297mm !important;
+    height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #root {
+    width: 297mm !important;
+    min-width: 297mm !important;
+    max-width: 297mm !important;
+    transform: none !important;
+  }
+
+  /* Hide UI while printing */
+  .no-print, button, .toolbar, .top-toolbar, .floating-toolbar {
+    display: none !important;
+  }
+}
+
 </style>
+
+<style id="export-hardlock-patch-v1">
+/* === EXPORT HARDLOCK: kills milky/transparent look in print/share engines === */
+@media print {
+  html, body, #root {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    filter: none !important; /* disable global page filters during print */
+    min-width: 1120px !important;
+  }
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page { size: A4 landscape !important; margin: 0.5cm !important; }
+  .situation-view-wrapper, .print-offer-view {
+    /* PRINT-FIT: nicht hart auf 1120px fixieren */
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+  }
+}
+
+/* Share/PDF mode (html2pdf clone sets body.pdf-share-mode) */
+body.pdf-share-mode, body.pdf-share-mode #root, body.pdf-share-mode .pdf-share-pdf-container,
+body.pdf-share-mode .situation-view-wrapper, body.pdf-share-mode .print-offer-view {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  filter: none !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+body.pdf-share-mode *, body.pdf-share-mode *::before, body.pdf-share-mode *::after {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Optional: manual export flag */
+body.exporting, body.exporting #root { filter:none !important; background:#fff !important; }
+</style>
+
+
+<!-- === PRINT CHROME FIX v28: force A4 landscape on ALL pages + hard page breaks === -->
+<style id="print-chrome-fix-v28">
+@page { size: A4 landscape; margin: 0.5cm; }
+
+/* Chrome sometimes applies @page only to first page when multiple conflicting print blocks exist.
+   This override enforces landscape sizing + deterministic 2-page layout. */
+@media print{
+  html, body{
+    width: 297mm !important;
+    max-width: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Ensure our main print pages behave like real pages */
+  .print-page{
+    width: 287mm !important; /* 297mm - margins */
+    max-width: 287mm !important;
+    box-sizing: border-box !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .print-page:last-of-type{
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  /* Fallback: if your layout uses named wrappers instead of .print-page */
+  .print-situation-view, .print-offer-view{
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Avoid nested @media print side-effects: kill any accidental nested print zoom scaling */
+  .bundle-import-wrap{
+    zoom: 1 !important;
+    transform: none !important;
+  }
+}
+
+  /* v29: Chrome prints 4 pages because share-safe-stage (pdf-share pages) are still present.
+     For paper print (Ctrl+P) we hide the share stage completely. */
+  body.force-paper-print .share-safe-stage,
+  body.force-paper-print .share-safe-stage *{
+    display: none !important;
+  }
+</style>
+
 </head>
 <body>
     <div id="root"></div>
@@ -851,6 +1440,9 @@ body.pdf-share-mode .share-page:last-child{
             Wallet: '<path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
             X: '<path d="M18 6 6 18"/><path d="m6 6 18 18"/>',
             Pen: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+
+            Fountain: '<path d="M12 2l4 8-4 12-4-12 4-8Z"/><path d="M12 10v10"/><path d="M9.5 13.5h5"/>',
+            Ballpen: '<path d="M7 3h10l1 4H6l1-4Z"/><path d="M8 7v12l4 2 4-2V7"/><path d="M10 11h4"/><path d="M12 21v1"/>',
             Keyboard: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M12 18h.01"/><path d="M8 8h.01"/><path d="M12 8h.01"/><path d="M16 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M8 16h.01"/><path d="M12 16h.01"/><path d="M16 16h.01"/>',
             Eraser: '<path d="m2.9 15.8a2.9 2.9 0 0 0 9.9 0l5.6-5.6a2.9 2.9 0 0 0-4.2-4.2l-5.6 5.6c-.4.4-.5 1.05-.2 1.6"/><path d="m11 7 5.3 5.3"/><path d="M22 21H7"/>',
             Palette: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
@@ -1204,7 +1796,7 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
                 const cssY = clientY - rect.top;
                 return { x: cssX, y: cssY };
             };
-            const startDrawing = (e) => { e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const pt = e.pointerType; if (pt && pt !== 'pen' && pt !== 'touch' && pt !== 'mouse') return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); /* Canvas-Context ist bereits im resizeCanvas() auf DPR skaliert, daher hier NICHT nochmal mit DPR multiplizieren. */ ctx.lineWidth = sigConfig.strokeWidth; ctx.strokeStyle = sigConfig.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(cssX, cssY); currentStrokeRef.current = { tool: 'pen', color: sigConfig.color, width: sigConfig.strokeWidth, points: [{ x: cssX, y: cssY }], baseWidth: canvas.getBoundingClientRect().width }; if (canvas.setPointerCapture && e.pointerId != null) { try { canvas.setPointerCapture(e.pointerId); } catch(_) {} } setIsDrawingSig(true); };
+            const startDrawing = (e) => { e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const pt = e.pointerType; if (pt && pt !== 'pen' && pt !== 'touch' && pt !== 'mouse') return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); /* Canvas-Context ist bereits im resizeCanvas() auf DPR skaliert, daher hier NICHT nochmal mit DPR multiplizieren. */ ctx.lineWidth = sigConfig.strokeWidth; ctx.strokeStyle = sigConfig.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(cssX, cssY); currentStrokeRef.current = { tool: 'pen', color: sigConfig.color, width: sigConfig.strokeWidth, points: [{ x: cssX, y: cssY }], baseWidth: canvas.getBoundingClientRect().width, baseHeight: canvas.getBoundingClientRect().height }; if (canvas.setPointerCapture && e.pointerId != null) { try { canvas.setPointerCapture(e.pointerId); } catch(_) {} } setIsDrawingSig(true); };
             const draw = (e) => { if (!isDrawingSig || !currentStrokeRef.current) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; const { x: cssX, y: cssY } = getRelativeCoords(e, canvas) || {}; if (cssX == null || cssY == null) return; const ctx = canvas.getContext('2d'); ctx.lineTo(cssX, cssY); ctx.stroke(); currentStrokeRef.current.points.push({ x: cssX, y: cssY }); setHasSigned(true); };
             const stopDrawing = (e) => { if (!isDrawingSig) return; e.preventDefault(); const canvas = canvasRef.current; if (!canvas) return; if (canvas.releasePointerCapture && e.pointerId != null) { try { canvas.releasePointerCapture(e.pointerId); } catch(_) {} } setIsDrawingSig(false); };
             const clearCanvas = () => { const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); setHasSigned(false); currentStrokeRef.current = null; };
@@ -1440,14 +2032,544 @@ for (const [key, strokes] of Object.entries(drawnStrokes)) {
             return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in"> <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"> <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl"><h3 className="font-bold text-lg flex items-center gap-2 text-slate-800"><Icon d={ICONS.Lock} size={18}/> Admin: Fragen & Links</h3><button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><Icon d={ICONS.X} size={18}/></button></div> <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"> <div className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm"><h4 className="font-bold text-slate-700 mb-2 text-sm flex items-center gap-2"><Icon d={ICONS.Book} size={16} className="text-blue-500"/> Link zur Aktionsmappe (OneDrive)</h4><input type="url" value={localLink} onChange={(e) => setLocalLink(e.target.value)} placeholder="https://..." className="w-full border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none text-slate-600"/><p className="text-[10px] text-slate-400 mt-1">Dieser Link wird beim Klick auf das Buch-Icon (Angebotsseite) geöffnet.</p></div><div className="border-t border-slate-100 pt-2"><h4 className="font-bold text-slate-700 mb-4 text-sm">Fragenkatalog bearbeiten</h4><div className="space-y-4">{Object.keys(localData).map(cat => ( <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden"><button onClick={() => setExpandedCat(expandedCat === cat ? null : cat)} className={`w-full p-3 text-left font-bold flex justify-between items-center ${expandedCat === cat ? 'bg-blue-50 text-blue-700' : 'bg-white text-slate-700 hover:bg-slate-50'}`}><span>{cat === 'default' ? 'Standard Fragen' : cat}</span><Icon d={expandedCat === cat ? ICONS.ArrowLeft : ICONS.ArrowRight} className={`transform transition-transform ${expandedCat === cat ? '-rotate-90' : 'rotate-90'}`} size={16}/></button> {expandedCat === cat && (<div className="p-4 bg-slate-50/50 space-y-2 border-t border-slate-100">{localData[cat].map((q, i) => (<div key={i} className="flex gap-2"><input className="flex-1 border border-slate-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-200 outline-none" value={q} onChange={(e) => handleQuestionChange(cat, i, e.target.value)} /><button onClick={() => handleQuestionChange(cat, i, '')} className="p-2 text-red-400 hover:bg-red-100 rounded" title="Frage löschen"><Icon d={ICONS.Trash} size={16}/></button></div>))}<button onClick={() => handleAddQuestion(cat)} className="text-xs font-bold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1"><Icon d={ICONS.Plus} size={14}/> Frage hinzufügen</button></div>)} </div> ))} </div></div></div> <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 rounded-b-xl"><button onClick={onClose} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-200 rounded-lg transition-colors">Abbrechen</button><button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors">Alle Speichern</button></div> </div> </div> ); 
         };
 
-const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) => {
+const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast, targetKey = 'offer1' }) => {
     const iframeRef = useRef(null);
     const fileRef = useRef(null);
     const [isWorking, setIsWorking] = useState(false);
 
+    const [currentUrl, setCurrentUrl] = useState(url || '');
+    // NEW: do not auto-import on click. Preview first, then confirm via "Uebernehmen".
+    const [pendingImport, setPendingImport] = useState(null); // { kind: "html"|"image", value: any }
+    const [selectedBundleId, setSelectedBundleId] = useState('');
+
+
+    const targetLabel = (targetKey === 'offer2') ? 'Canva 2' : (targetKey === 'offer3') ? 'Canva 3' : 'Canva 1';
+
+    // Build a sharp, self-contained Bundle card HTML from a data payload (also used for DOM-extraction fallback)
+    const buildHighResBundleHTML = (raw) => {
+        const d = raw || {};
+        // If the Aktionsmappe already provides the full card HTML (Tailwind classes), prefer it to keep the tile 1:1.
+        // IMPORTANT: Pencil-Selling does not have the Tailwind stylesheet from the Aktionsmappe.
+        // Therefore the original Laufzeit <select> can appear as an empty white bar. We inject a visible term badge
+        // (24/36 Monate) right above 'ANGEBOTSPREIS' and apply minimal inline styles for selects.
+        if (d && typeof d.cardHTML === 'string' && d.cardHTML.trim()) {
+            const escInline = (s) => String(s ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+
+            const rawTermInline = (d.laufzeit || d.term || d.duration || d.monate || d.months || '').toString().trim();
+            const termBadgeInline = rawTermInline && !/mon/i.test(rawTermInline) ? (rawTermInline + ' Monate') : rawTermInline;
+
+            let html = String(d.cardHTML);
+
+            // Inject term badge above the label 'ANGEBOTSPREIS' (first occurrence only)
+            if (termBadgeInline) {
+                const badgeHTML = `<div data-ps-term-badge="1" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;line-height:1;color:#fff;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.30);padding:6px 10px;border-radius:10px;margin-bottom:8px;">${escInline(termBadgeInline)}</div>`;
+                // Insert right before the text 'ANGEBOTSPREIS'
+                html = html.replace(/ANGEBOTSPREIS/i, `${badgeHTML}<div style="height:2px"></div>ANGEBOTSPREIS`);
+            }
+
+            const styleFix = `<style>
+              
+              /* === PS FIX: keep imported bundle card size consistent immediately === */
+              .bundle-import-wrap{
+                zoom: 0.78;
+              }
+              /* Fallback if zoom unsupported */
+              @supports not (zoom:1){
+                .bundle-import-wrap{
+                  transform: scale(0.78);
+                  transform-origin: top left;
+                }
+              }
+/* Ensure term selector is readable even without Tailwind */
+              .bundle-import-wrap select, .bundle-import-wrap option {
+                color:#ffffff !important;
+              }
+              .bundle-import-wrap select {
+                background: rgba(255,255,255,0.18) !important;
+                border: 1px solid rgba(255,255,255,0.30) !important;
+                border-radius: 10px !important;
+                padding: 6px 10px !important;
+                font-weight: 900 !important;
+                font-size: 13px !important;
+                appearance: none !important;
+                -webkit-appearance: none !important;
+              }
+              /* If a select still renders as an empty white rectangle, hide it when we injected a badge */
+              .bundle-import-wrap [data-ps-term-badge="1"] ~ select {
+                display:none !important;
+              }
+            </style>`;
+
+            return `<div class="bundle-import-wrap" style="max-width:100%;">${styleFix}${html}</div>`;
+        }
+        const esc = (s) => String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const titel = esc(d.geraet || d.titel || d.bezeichnung || 'Bundle Angebot');
+        const tarifName = esc(d.tarif || d.tarifName || d.artikelName || '');
+        const preis = esc(d.preis || d.angebotspreis || '0,00 €');
+        const validUntil = esc(d.validUntil || '');
+        const detailsHTML = (d.detailsHTML || '');
+
+        // Laufzeit/Term -> Badge (damit 24/36 korrekt sichtbar ist)
+        const rawTerm = (d.laufzeit || d.term || d.duration || d.monate || d.months || '').toString().trim();
+        const termBadge = rawTerm && !/mon/i.test(rawTerm) ? (rawTerm + ' Monate') : rawTerm;
+
+        const baseBadges = Array.isArray(d.badges) ? d.badges : [];
+        const badgesArr = (termBadge ? [termBadge, ...baseBadges] : baseBadges)
+            .filter(Boolean)
+            .map(esc)
+            .slice(0, 6);
+
+        const images = Array.isArray(d.images) ? d.images.slice(0, 3).map(esc)
+            : (d.bildUrl ? [esc(d.bildUrl)] : (d.bild ? [esc(d.bild)] : []));
+
+        // NOTE (v22): The Aktionsmappe often renders the SIM tile as an inline SVG / background
+        // (not an <img>). Our importer extracts only <img> tags, so the 3rd picture can be missing
+        // in Pencil-Selling even though it is visible in the popup.
+        // We add a conservative fallback SIM image ONLY for o2 bundle cards when exactly 2 images
+        // were found.
+        const SIM_CARD_DATA_URI = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#e5e7eb"/>
+                <stop offset="1" stop-color="#f8fafc"/>
+              </linearGradient>
+            </defs>
+            <rect x="28" y="42" width="200" height="172" rx="18" fill="url(#g)" stroke="#94a3b8" stroke-width="6"/>
+            <path d="M176 42 L228 94 L228 42 Z" fill="#cbd5e1"/>
+            <rect x="72" y="96" width="112" height="88" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="6"/>
+            <rect x="92" y="118" width="40" height="20" rx="6" fill="#f59e0b"/>
+            <rect x="142" y="118" width="40" height="20" rx="6" fill="#f59e0b"/>
+            <rect x="92" y="148" width="90" height="20" rx="6" fill="#fbbf24"/>
+          </svg>
+        `);
+
+        const titleOrTarif = `${(d.geraet || d.titel || d.bezeichnung || '')} ${(d.tarif || d.tarifName || '')}`.toLowerCase();
+        const isLikelyO2Bundle = /\bo2\b/.test(titleOrTarif) || /o2\s*mobile/.test(titleOrTarif);
+        if (isLikelyO2Bundle && images.length === 2) images.push(SIM_CARD_DATA_URI);
+
+        const badgesHTML = badgesArr.map(b => `
+            <span style="
+                display:inline-flex;align-items:center;gap:6px;
+                padding:6px 10px;border-radius:999px;
+                background:#e7f2ff;color:#0b4aa2;
+                font-size:12px;font-weight:800;
+                border:1px solid #cfe5ff;
+            ">${b}</span>
+        `).join('');
+
+        const imagesHTML = images.map(src => `
+            <div style="
+                background:#fff;border-radius:10px;
+                border:1px solid #e5e7eb;
+                padding:10px;
+                width:220px;height:220px;
+                display:flex;align-items:center;justify-content:center;
+            ">
+              <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" />
+            </div>
+        `).join('');
+
+        return `
+          <div style="
+            width:100%; max-width:920px; margin:0 auto;
+            background:#fff; border-radius:18px;
+            border:2px solid #0b1e42;
+            overflow:hidden;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            pointer-events:none; user-select:none;
+          ">
+            <div style="
+              background:#173a7a;
+              color:#fff;
+              padding:14px 18px;
+              display:flex;
+              align-items:center;
+              justify-content:space-between;
+              gap:14px;
+            ">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <span style="
+                  width:28px;height:28px;
+                  border-radius:8px;
+                  background:rgba(255,255,255,.14);
+                  display:flex;align-items:center;justify-content:center;
+                  font-weight:900;
+                ">📦</span>
+                <div style="
+                  font-size:22px;
+                  font-weight:1000;
+                  white-space:nowrap;
+                  overflow:hidden;
+                  text-overflow:ellipsis;
+                  max-width:690px;
+                ">${titel}</div>
+              </div>
+
+              ${validUntil ? `
+                <div style="
+                  padding:6px 10px;
+                  border-radius:10px;
+                  background:rgba(255,255,255,.12);
+                  border:1px solid rgba(255,255,255,.22);
+                  font-weight:800;
+                  font-size:12px;
+                  white-space:nowrap;
+                ">Bis: ${validUntil}</div>
+              ` : ``}
+            </div>
+
+            <div style="padding:18px 18px 16px 18px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;">
+                <div style="flex:1;min-width:0;">
+                  ${tarifName ? `<div style="font-size:22px;font-weight:1000;color:#0b1e42;">${tarifName}</div>` : ``}
+                  ${badgesArr.length ? `<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">${badgesHTML}</div>` : ``}
+                </div>
+
+                <div style="
+                  width:170px;flex:0 0 170px;
+                  background:#dc2626;
+                  border-radius:12px;
+                  color:#fff;
+                  padding:12px 14px;
+                  box-shadow:0 8px 20px rgba(0,0,0,.10);
+                  text-align:center;
+                ">
+                  <div style="font-size:11px;font-weight:900;opacity:.95;letter-spacing:.06em;">PREIS</div>
+                  <div style="font-size:30px;font-weight:1100;line-height:1.1;margin-top:6px;">${preis}</div>
+                </div>
+              </div>
+
+              ${images.length ? `
+                <div style="
+                  margin-top:16px;
+                  display:flex;
+                  justify-content:center;
+                  gap:18px;
+                  flex-wrap:wrap;
+                ">${imagesHTML}</div>
+              ` : ``}
+
+              ${detailsHTML ? `
+                <div style="
+                  margin-top:18px;
+                  border-radius:14px;
+                  border:1px solid #e5e7eb;
+                  background:#f8fafc;
+                  padding:14px 16px;
+                ">
+                  <div style="
+                    border-left:4px solid #2563eb;
+                    padding-left:12px;
+                    color:#0f172a;
+                    font-size:14px;
+                    line-height:1.35;
+                  ">${detailsHTML}</div>
+                </div>
+              ` : ``}
+            </div>
+          </div>
+        `;
+    };
+
+    // Fallback: read the current selection (24/36 Monate) directly from the embedded Bundle page
+    const tryExtractBundleDataFromIframe = () => {
+        try {
+            const doc = iframeRef.current?.contentDocument || iframeRef.current?.contentWindow?.document;
+            if (!doc) return null;
+
+            // 1) Laufzeit (aktuelle Auswahl 24/36 Monate)
+            let termText = '';
+            let termAnchor = null;
+
+            // a) Klassisch: <select> (falls vorhanden)
+            const selects = Array.from(doc.querySelectorAll('select'));
+            const termSel = selects.find(s => {
+                const name = ((s.getAttribute('name')||'') + ' ' + (s.getAttribute('id')||'') + ' ' + (s.getAttribute('class')||'')).toLowerCase();
+                return /lauf|term|monat|dauer/.test(name);
+            });
+            if (termSel) {
+                const opt = termSel.options[termSel.selectedIndex];
+                termText = (opt && opt.textContent ? opt.textContent : '').trim();
+                termAnchor = termSel;
+            }
+
+            // b) UI-Dropdown als Button/Badge (dein Fall: "36 Monate" sichtbar, aber kein <select>)
+            if (!termText) {
+                const rx = /\b(24|36)\s*monate\b/i;
+                const candidates = Array.from(doc.querySelectorAll('*'))
+                    .filter(el => {
+                        if (!el) return false;
+                        const t = (el.textContent || '').trim();
+                        if (!t || t.length > 30) return false;
+                        if (!rx.test(t)) return false;
+                        try { return el.offsetParent !== null; } catch (_) { return false; }
+                    });
+
+                if (candidates.length) {
+                    // Nimm das Element mit dem kuerzesten, passendsten Text (meist genau "36 Monate")
+                    candidates.sort((a,b) => ((a.textContent||'').trim().length) - ((b.textContent||'').trim().length));
+                    termText = (candidates[0].textContent || '').trim();
+                    termAnchor = candidates[0];
+                }
+            }
+
+// 2) Preis (nur der aktuell sichtbare Preis zur gewaehlten Laufzeit)
+            let priceText = '';
+            const euroRe = /\b\d{1,3}(?:[\.,]\d{2})\s?€\b/;
+
+            const isVisibleEl = (el) => {
+                try {
+                    if (!el) return false;
+                    const cs = doc.defaultView ? doc.defaultView.getComputedStyle(el) : null;
+                    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
+                    const r = el.getBoundingClientRect ? el.getBoundingClientRect() : { width: 0, height: 0 };
+                    return (r.width > 0 && r.height > 0);
+                } catch (e) { return false; }
+            };
+
+            const pickVisiblePrice = (root) => {
+                try {
+                    const els = Array.from((root || doc.body).querySelectorAll('span,div,p,strong,b,td,li,h1,h2,h3,h4'))
+                        .filter(isVisibleEl);
+                    const hits = [];
+                    for (const el of els) {
+                        const t = (el.textContent || '').replace(/\s+/g,' ').trim();
+                        if (!t || t.length > 80) continue;
+                        const m = t.match(euroRe);
+                        if (m) hits.push({ price: m[0], len: t.length, text: t });
+                    }
+                    if (!hits.length) return '';
+                    hits.sort((a,b)=> a.len - b.len);
+                    return hits[0].price || '';
+                } catch (e) { return ''; }
+            };
+
+            // Erst im Umfeld der Laufzeit-Auswahl suchen (damit 36M nicht auf 24M faellt)
+            let scope = doc.body;
+            try {
+                if (termSel && termSel.closest) {
+                    scope = termSel.closest('section,form,main,article,div,[data-bundle-card],[data-bundle],[data-bundle-root],[data-tile],[role="dialog"]') || termSel.parentElement || doc.body;
+                }
+            } catch(e) {}
+
+            // Robust: Preis zur aktuell gewaehlten Laufzeit finden
+            const termNum = (termText && termText.match(/\b(24|36)\b/)) ? (termText.match(/\b(24|36)\b/)[1]) : '';
+            const termRegex = termNum ? new RegExp('\\b' + termNum + '\\b.*monat', 'i') : null;
+
+            const collectVisiblePrices = (root) => {
+                const prices = [];
+                try {
+                    const walker = doc.createTreeWalker(root || doc.body, NodeFilter.SHOW_TEXT, null);
+                    let n; let guard = 0;
+                    while ((n = walker.nextNode()) && guard < 6000) {
+                        guard += 1;
+                        const txt = (n.nodeValue || '').replace(/\s+/g, ' ').trim();
+                        if (!txt) continue;
+                        const mm = txt.match(euroRe);
+                        if (!mm) continue;
+                        const el = n.parentElement;
+                        if (!isVisibleEl(el)) continue;
+                        prices.push({ value: mm[0], el });
+                    }
+                } catch(e) {}
+                return prices;
+            };
+
+            const findBestPriceNearTerm = () => {
+                if (!termRegex) return '';
+                let best = '';
+                try {
+                    // 1) finde sichtbare Elemente, die "24/36 Monate" anzeigen
+                    const termEls = Array.from((scope || doc.body).querySelectorAll('*'))
+                        .filter(el => {
+                            if (!isVisibleEl(el)) return false;
+                            const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                            return t && termRegex.test(t);
+                        })
+                        .slice(0, 40);
+
+                    // 2) pro Term-Element: im naechsten "Card/Tile"-Container Preis suchen
+                    for (const tel of termEls) {
+                        const container =
+                            tel.closest('[data-bundle-card],[data-bundle],[data-bundle-root],article,section,main,div') || scope || doc.body;
+
+                        const prices = collectVisiblePrices(container);
+                        if (!prices.length) continue;
+
+                        // Preis, der im DOM nach dem Term-Element kommt, bevorzugen
+                        const after = prices.find(p => {
+                            try { return !!(tel.compareDocumentPosition(p.el) & Node.DOCUMENT_POSITION_FOLLOWING); }
+                            catch(e) { return false; }
+                        });
+                        best = (after ? after.value : prices[0].value) || best;
+                        if (best) return best;
+                    }
+                } catch(e) {}
+                return best;
+            };
+
+            priceText = findBestPriceNearTerm() || pickVisiblePrice(scope) || pickVisiblePrice(doc.body);
+
+            // Heuristik: Wenn zwei Preise existieren und Laufzeit=36, nimm oft den guenstigeren (falls DOM nicht eindeutig)
+            if (termNum === '36') {
+                try {
+                    const prices = collectVisiblePrices(scope);
+                    if (prices && prices.length >= 2) {
+                        const nums = prices.map(p => ({ raw: p.value, num: parseFloat(p.value.replace('€','').replace('.','').replace(',','.')) }))
+                                         .filter(p => !isNaN(p.num))
+                                         .sort((a,b) => a.num - b.num);
+                        if (nums.length) priceText = nums[0].raw;
+                    }
+                } catch(e) {}
+            }
+
+            // Letzter Fallback: TreeWalker (falls alles als Canvas/ohne sichtbare Nodes gerendert ist)
+            if (!priceText) {
+                const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+                let n; let seen = 0;
+                while ((n = walker.nextNode()) && seen < 3500) {
+                    seen += 1;
+                    const s = (n.nodeValue || '').replace(/\s+/g, ' ').trim();
+                    if (!s) continue;
+                    const m = s.match(euroRe);
+                    if (m) { priceText = m[0]; break; }
+                }
+            }
+
+            // 3) Titel (prefer header-like prominent text)
+            let titleText = '';
+            const headings = Array.from(doc.querySelectorAll('h1,h2,h3'));
+            if (headings.length) {
+                titleText = (headings[0].textContent || '').trim();
+            }
+            if (!titleText) {
+                // fallback: longest "card header" text
+                const candidates = Array.from(doc.querySelectorAll('div,span,strong'))
+                    .map(el => (el.textContent || '').trim())
+                    .filter(t => t.length >= 12 && t.length <= 90);
+                titleText = candidates.sort((a,b)=>b.length-a.length)[0] || 'Bundle Angebot';
+            }
+
+            // 4) Tarif line (first short bold-ish line with "o2")
+            let tarifText = '';
+            const allTextEls = Array.from(doc.querySelectorAll('div,span,strong,p'));
+            const o2Line = allTextEls.map(el => (el.textContent || '').replace(/\s+/g,' ').trim())
+                .find(t => /^o2\s+/i.test(t) && t.length <= 40);
+            if (o2Line) tarifText = o2Line;
+
+            // 5) Images (up to 3 big visible imgs)
+            const imgs = Array.from(doc.querySelectorAll('img'))
+                .filter(img => {
+                    const src = img.getAttribute('src') || '';
+                    if (!src) return false;
+                    const r = img.getBoundingClientRect ? img.getBoundingClientRect() : {width:0,height:0};
+                    return (r.width >= 60 && r.height >= 60);
+                })
+                .slice(0, 3)
+                .map(img => img.getAttribute('src'));
+
+            // 6) Details (lines with GB/Internet/Partnerkarte)
+            const detailLines = allTextEls
+                .map(el => (el.textContent || '').replace(/\s+/g,' ').trim())
+                .filter(t => /\b(GB|Internet|Partnerkarte)\b/i.test(t) && t.length <= 60);
+            const uniq = []
+            for (const t of detailLines) {
+                if (!uniq.includes(t)) uniq.push(t);
+                if (uniq.length >= 6) break;
+            }
+            const detailsHTML = uniq.map(t => `<div>${t}</div>`).join('');
+
+            return {
+                titel: titleText,
+                tarif: tarifText,
+                preis: priceText,
+                term: termText,
+                detailsHTML,
+                images: imgs,
+            };
+        } catch (e) {
+            return null;
+        }
+    };
+
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setCurrentUrl(ensureEmbedUrl(url || BUNDLE_URL || ''));
+    }, [isOpen, url]);
+
+    const ensureEmbedUrl = (rawUrl) => {
+        const raw = String(rawUrl||'').trim();
+        if (!raw) return '';
+        try {
+            const u = new URL(raw, window.location.href);
+            u.hash = '';
+            if (!u.searchParams.get('embed')) u.searchParams.set('embed','1');
+            // cache-bust to avoid stale GitHub Pages / service worker cache
+            u.searchParams.set('_ts', String(Date.now()));
+            return u.toString();
+        } catch (e) {
+            const base = raw.split('#')[0];
+            if (base.includes('?')) return base + '&embed=1&_ts=' + Date.now();
+            return base + '?embed=1&_ts=' + Date.now();
+        }
+    };
+
+    const buildBundleUrl = (bundleId) => {
+        // IMPORTANT: always build from the stable base URL (url/BUNDLE_URL), not from currentUrl.
+        // currentUrl may contain temporary states like #admin or user-edited params.
+        const rawBase = String((url || BUNDLE_URL || currentUrl || '')).trim();
+        if (!rawBase) return '';
+        try {
+            const u = new URL(rawBase, window.location.href);
+            // normalize: drop hash and start fresh with query
+            u.hash = '';
+            u.search = '';
+            u.searchParams.set('bundleId', bundleId);
+            u.searchParams.set('embed', '1');
+            // cache-bust to ensure latest cloud-synced content is fetched
+            u.searchParams.set('_ts', String(Date.now()));
+            return u.toString();
+        } catch (e) {
+            const base = rawBase.split('#')[0].split('?')[0];
+            return base + '?bundleId=' + encodeURIComponent(bundleId) + '&embed=1&_ts=' + Date.now();
+        }
+    };
+
+    const copyToClipboard = async (s) => {
+        try {
+            await navigator.clipboard.writeText(String(s||''));
+            if (typeof triggerToast === 'function') triggerToast('Link kopiert.');
+        } catch (_) {
+            // fallback
+            const ta = document.createElement('textarea');
+            ta.value = String(s||'');
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            if (typeof triggerToast === 'function') triggerToast('Link kopiert.');
+        }
+    };
+
+
     const gotAutoImportRef = useRef(false);
 
-    // Listen for screenshot messages from the iframe (optional: if the Bundle page supports it)
+    
+    const lastBundleDataRef = useRef(null);
+    const lastBundleTsRef = useRef(0);
+    const pendingBundleReqRef = useRef(null);
+// Listen for screenshot messages from the iframe (optional: if the Bundle page supports it)
     // Robust: accepts {dataUrl} or {payload}. Also verifies sender (source window) + origin.
     useEffect(() => {
         if (!isOpen) return;
@@ -1456,26 +2578,54 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
 
         const expectedWin = iframeRef.current?.contentWindow || null;
         let expectedOrigin = null;
-        try { expectedOrigin = url ? (new URL(url)).origin : null; } catch(_) {}
+        try { expectedOrigin = currentUrl ? (new URL(currentUrl)).origin : (url ? (new URL(url)).origin : null); } catch(_) {}
 
         const handler = (e) => {
             try {
                 const d = e.data || {};
-                if (!d || d.type !== 'BUNDLE_SCREENSHOT') return;
+                if (!d || (d.type !== 'BUNDLE_SCREENSHOT' && d.type !== 'BUNDLE_DATA_TRANSFER')) return;
 
                 // Security: accept only from our iframe window (if available) and/or from expected origin
                 if (expectedWin && e.source && e.source !== expectedWin) return;
                 if (expectedOrigin && e.origin && e.origin !== expectedOrigin) return;
 
-                const imageStr = d.dataUrl || d.payload;
+                // 1) Legacy: Screenshot import (data:image...)
+                if (d.type === 'BUNDLE_SCREENSHOT') {
+                    const imageStr = d.dataUrl || d.payload;
 
-                if (typeof imageStr === 'string' && imageStr.startsWith('data:image')) {
+                    if (typeof imageStr === 'string' && imageStr.startsWith('data:image')) {
+                        gotAutoImportRef.current = true;
+                        setPendingImport({ kind: 'image', value: imageStr });
+                        if (typeof triggerToast === "function") triggerToast("Bundle geladen – bitte mit + Uebernehmen in " + targetLabel + " einfuegen.");
+                        setIsWorking(false);
+                    } else {
+                        console.warn('BUNDLE_SCREENSHOT received but missing/invalid image data', d);
+                    }
+                    return;
+                }
+
+                // 2) NEW: Data transfer -> echtes HTML (scharf) in Canva 1
+                if (d.type === 'BUNDLE_DATA_TRANSFER') {
+                    const __now = Date.now();
+                    lastBundleDataRef.current = d;
+                    lastBundleTsRef.current = __now;
+                    // If we are waiting for a fresh export, resolve when matching requestId or newer than request time
+                    const __pend = pendingBundleReqRef.current;
+                    if (__pend && !__pend.resolved) {
+                        const matchId = (__pend.id && d.requestId && String(d.requestId) === String(__pend.id));
+                        const newer = __now > (__pend.t0 || 0);
+                        if (matchId || newer) {
+                            __pend.resolved = true;
+                            try { __pend.resolve(d); } catch(_) {}
+                        }
+                    }
+
+const highResHTML = buildHighResBundleHTML(d);
                     gotAutoImportRef.current = true;
-                    if (typeof onImportToCanvas === 'function') onImportToCanvas(imageStr);
-                    if (typeof triggerToast === 'function') triggerToast('Bundle-Screenshot in Canva 1 übernommen.');
+                    setPendingImport({ kind: "html", value: highResHTML });
+                    if (typeof triggerToast === "function") triggerToast("Bundle geladen – bitte mit + Uebernehmen in " + targetLabel + " einfuegen.");
                     setIsWorking(false);
-                } else {
-                    console.warn('BUNDLE_SCREENSHOT received but missing/invalid image data', d);
+                    return;
                 }
             } catch (err) {
                 console.warn('BundleModal message handler failed', err);
@@ -1484,7 +2634,46 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
 
         window.addEventListener('message', handler);
         return () => window.removeEventListener('message', handler);
-    }, [isOpen, url, onImportToCanvas, triggerToast]);
+    }, [isOpen, currentUrl, url, onImportToCanvas, triggerToast]);
+
+
+    // --- CANVAS_LOCK_MODE: show ONLY the relevant slot buttons for the current Offer-Canvas ---
+    // offer1 -> hw-01..03 | offer2 -> home-01..03 | offer3 -> tv-01..03
+    const CANVAS_LOCK_MODE = true;
+    const groupByTargetKey = (k) => {
+        if (k === 'offer1') return 'hw';
+        if (k === 'offer2') return 'home';
+        if (k === 'offer3') return 'tv';
+        // Fallback: try to infer from label
+        const t = String(targetLabel || '').toLowerCase();
+        if (t.includes('1')) return 'hw';
+        if (t.includes('2')) return 'home';
+        if (t.includes('3')) return 'tv';
+        return 'hw';
+    };
+    const allowedIdsByGroup = {
+        hw: ['hw-01','hw-02','hw-03'],
+        home: ['home-01','home-02','home-03'],
+        tv: ['tv-01','tv-02','tv-03'],
+    };
+    const activeGroup = groupByTargetKey(targetKey);
+    const allowedIds = allowedIdsByGroup[activeGroup] || allowedIdsByGroup.hw;
+    const defaultId = allowedIds[0];
+
+
+    // When modal opens: always jump directly to the first slot of that canvas (e.g. hw-01)
+    useEffect(() => {
+        if (!isOpen) return;
+        try {
+            if (CANVAS_LOCK_MODE) {
+                setSelectedBundleId(defaultId);
+                setPendingImport(null);
+                setIsWorking(false);
+                setCurrentUrl(buildBundleUrl(defaultId));
+            }
+        } catch (_) {}
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, targetKey]);
 
 
     if (!isOpen) return null;
@@ -1493,16 +2682,94 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
         try {
             const win = iframeRef.current?.contentWindow;
             let targetOrigin = '*';
-            try { targetOrigin = url ? (new URL(url)).origin : '*'; } catch(_) {}
-            if (win) win.postMessage({ type: 'REQUEST_BUNDLE_SCREENSHOT' }, targetOrigin);
+            try { targetOrigin = currentUrl ? (new URL(currentUrl)).origin : (url ? (new URL(url)).origin : '*'); } catch(_) {}
+            if (win) {
+                // Try to request structured data first (if supported), then screenshot fallback
+                win.postMessage({ type: 'REQUEST_BUNDLE_DATA' }, targetOrigin);
+                win.postMessage({ type: 'REQUEST_BUNDLE_SCREENSHOT' }, targetOrigin);
+            }
         } catch (_) {}
+    };
+
+    const requestIframeBundleData = (requestId) => {
+        try {
+            const win = iframeRef.current?.contentWindow;
+            let targetOrigin = '*';
+            try { targetOrigin = currentUrl ? (new URL(currentUrl)).origin : (url ? (new URL(url)).origin : '*'); } catch(_) {}
+            if (win) {
+                // Ask the embedded bundle page to re-export the CURRENT selection (term/price) as data transfer
+                win.postMessage({ type: 'REQUEST_BUNDLE_DATA_TRANSFER', requestId }, targetOrigin);
+                // Backward compatible aliases (in case the bundle page uses another name)
+                win.postMessage({ type: 'REQUEST_BUNDLE_DATA', requestId }, targetOrigin);
+                win.postMessage({ type: 'EXPORT_BUNDLE_DATA', requestId }, targetOrigin);
+            }
+        } catch (_) {}
+    };
+
+    const waitForFreshBundleData = (t0, requestId, timeoutMs = 1200) => {
+        return new Promise((resolve) => {
+            // If we already have newer data, resolve immediately
+            if (lastBundleTsRef.current && lastBundleTsRef.current > t0) {
+                return resolve(lastBundleDataRef.current);
+            }
+            let done = false;
+            const timer = setTimeout(() => {
+                if (done) return;
+                done = true;
+                // cleanup pending
+                if (pendingBundleReqRef.current && pendingBundleReqRef.current.id === requestId) {
+                    pendingBundleReqRef.current = null;
+                }
+                resolve(null);
+            }, timeoutMs);
+
+            pendingBundleReqRef.current = {
+                id: requestId,
+                t0,
+                resolved: false,
+                resolve: (d) => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    pendingBundleReqRef.current = null;
+                    resolve(d);
+                }
+            };
+        });
     };
 
     const handleImportClick = async () => {
         if (isWorking) return;
         setIsWorking(true);
 
-        // 1) Try postMessage flow (works only if the Bundle page implements it)
+        
+        // Always request a fresh data export first (so 24/36 Monate is correct)
+        const __reqId = String(Date.now()) + '_' + Math.random().toString(16).slice(2);
+        const __t0 = Date.now();
+        gotAutoImportRef.current = false;
+        requestIframeBundleData(__reqId);
+        // Wait a moment for BUNDLE_DATA_TRANSFER to arrive (if supported)
+        await waitForFreshBundleData(__t0, __reqId, 1300);
+        if (gotAutoImportRef.current) {
+            // We already imported via BUNDLE_DATA_TRANSFER handler
+            setIsWorking(false);
+            return;
+        }
+
+// 0) BEST: Same-origin DOM-extraction (reads the CURRENT 24/36 selection from the iframe)
+        try {
+            const extracted = tryExtractBundleDataFromIframe();
+            if (extracted) {
+                gotAutoImportRef.current = true;
+                const highResHTML = buildHighResBundleHTML(extracted);
+                setPendingImport({ kind: 'html', value: highResHTML });
+                if (typeof triggerToast === 'function') triggerToast('Bundle geladen – bitte mit + Uebernehmen in ' + targetLabel + ' einfuegen.');
+                setIsWorking(false);
+                return;
+            }
+        } catch(_) {}
+
+        // 1) Try postMessage flow (works if the Bundle page implements it)
         requestIframeScreenshot();
 
         // 2) Short wait for a response; if none -> fallback to manual file import
@@ -1512,7 +2779,7 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
         if (!gotAutoImportRef.current) {
             setIsWorking(false);
             if (typeof triggerToast === 'function') {
-                triggerToast('Kein Auto-Import erhalten. Diese Verkaufsmappe sendet aktuell keinen Screenshot per postMessage. Bitte dort Screenshot/Druck nutzen oder den Sender-Patch (postMessage + html2canvas) einbauen.');
+                triggerToast('Kein Auto-Import erhalten. Prüfe bitte, ob der Link die Einzelansicht enthält (?...bundleId=...) und die Aktionsmappe den postMessage-Export (BUNDLE_DATA_TRANSFER) unterstützt.');
             }
         }
     };
@@ -1532,6 +2799,29 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
         reader.readAsDataURL(file);
     };
 
+
+    const handleConfirmImport = () => {
+        if (!pendingImport) {
+            if (typeof triggerToast === "function") triggerToast("Bitte erst ein Bundle waehlen und laden.");
+            return;
+        }
+        try {
+            if (typeof onImportToCanvas === "function") {
+                if (pendingImport.kind === "image") {
+                    onImportToCanvas(pendingImport.value);
+                } else if (pendingImport.kind === "html") {
+                    onImportToCanvas({ kind: "html", html: pendingImport.value });
+                }
+            }
+            if (typeof triggerToast === "function") triggerToast("In " + targetLabel + " uebernommen.");
+            setPendingImport(null);
+            onClose();
+        } catch (_) {}
+    };
+
+
+
+
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 animate-in fade-in">
             <div className="bg-white w-[95vw] h-[90vh] rounded-2xl shadow-2xl border border-slate-200 relative overflow-hidden">
@@ -1544,35 +2834,70 @@ const BundleModal = ({ isOpen, onClose, url, onImportToCanvas, triggerToast }) =
                     <Icon d={ICONS.X} size={18}/>
                 </button>
 
-                <div className="absolute top-3 left-3 right-14 z-10 flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={handleImportClick}
-                        className="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition-colors flex items-center gap-2"
-                        title="Bundle als Screenshot/Bild in Canva 1 übernehmen"
-                    >
-                        <Icon d={ICONS.Camera} size={16}/>
-                        {isWorking ? 'Übernehme…' : '📸 In Canva 1 übernehmen'}
-                    </button>
+                <div className="absolute top-3 left-3 right-14 z-10 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                                                <button type="button" onClick={handleImportClick} className="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold shadow hover:bg-slate-800 transition-colors" title="Bundle laden (nur Vorschau)">{isWorking ? 'Lade…' : '🔄 Laden'}</button>
+                        <button type="button" onClick={handleConfirmImport} disabled={!pendingImport} className={pendingImport ? "px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold shadow hover:bg-emerald-700 transition-colors" : "px-3 py-2 rounded-xl bg-slate-200 text-slate-400 font-bold cursor-not-allowed"} title={pendingImport ? ("In " + targetLabel + " uebernehmen") : "Noch nichts geladen"}>➕ Uebernehmen</button>
 
-                    <span className="text-[11px] text-slate-500 hidden sm:inline">
-                        Falls nötig: Screenshot speichern und als Bild auswählen.
-                    </span>
+                        <span className="text-[11px] text-slate-500 hidden sm:inline">
+                            Tipp: Nutze die festen Buttons (hw/home/tv). Link bleibt immer gleich – du änderst nur den Inhalt im Admin.
+                        </span>
 
-                    <input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFilePick}
-                        style={{ display: 'none' }}
-                    />
+                        <input
+                            ref={fileRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFilePick}
+                            style={{ display: 'none' }}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2 bg-white/90 border border-slate-200 rounded-2xl p-2 shadow-sm">
+                        
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mr-1">{activeGroup === 'hw' ? 'CANVAS 1' : (activeGroup === 'home' ? 'CANVAS 2' : 'CANVAS 3')}</div>
+                            {allowedIds.map(id => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedBundleId(id);
+                                        setPendingImport(null);
+                                        setIsWorking(false);
+                                        setCurrentUrl(buildBundleUrl(id));
+                                    }}
+                                    className={
+                                        (selectedBundleId === id)
+                                            ? 'px-2.5 py-1.5 rounded-xl bg-blue-600 border border-blue-700 text-white text-xs font-black shadow'
+                                            : 'px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors'
+                                    }
+                                >
+                                    {id}
+                                </button>
+                            ))}
+
+                            {/* Admin + Copy bewusst ausgeblendet (wie gewuenscht) */}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Link</div>
+                            <input
+                                value={currentUrl}
+                                readOnly
+                                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="https://jefferson990.github.io/Verkaufsmappe/?bundleId=hw-01"
+                            />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="w-full h-full p-3 pt-16">
+                <div className="w-full h-full p-3 pt-44 relative overflow-hidden">
                     <iframe
                         ref={iframeRef}
                         title="Bundle Manager"
-                        src={url}
+                        src={currentUrl}
+                        // Crop the embedded page header/navigation inside the iframe (no cross-origin access needed)
+                        style={{ position: 'relative', top: '-140px', height: 'calc(100% + 140px)' }}
                         className="w-full h-full rounded-xl border border-slate-200"
                         sandbox="allow-same-origin allow-scripts"
                     />
@@ -1869,21 +3194,56 @@ const resolveUserName = (raw) => {
         // --- OFFER CANVAS (Redraw Patch Applied) ---
         const redrawCanvas = (canvas, strokes, scaleFactor = 1, key = '') => { 
             if (!canvas) return; 
+            // ✅ Wichtig für Drehen/Resize: Canvas-Pixelgröße immer an CSS-Größe anpassen (sonst "verschiebt" sich alles)
+            try {
+                const r = canvas.getBoundingClientRect();
+                const w = Math.max(1, Math.round(r.width || 0));
+                const h = Math.max(1, Math.round(r.height || 0));
+                if (w && h && (canvas.width !== w || canvas.height !== h)) {
+                    canvas.width = w;
+                    canvas.height = h;
+                }
+            } catch(_) {}
             const ctx = canvas.getContext('2d'); 
-            ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1)); 
+            if (!ctx) return;
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
             ctx.save(); 
             const isOfferCanvas = key.startsWith('offer') || key.startsWith('cost_') || key.startsWith('agent_') || key.startsWith('date_') || key.startsWith('signature'); 
             strokes.forEach(stroke => { 
                 ctx.beginPath(); 
-                let currentCssWidth = canvas.getBoundingClientRect().width; 
+                let currentCssWidth = canvas.getBoundingClientRect().width;
+                let currentCssHeight = canvas.getBoundingClientRect().height;
                 if (currentCssWidth === 0) currentCssWidth = stroke.baseWidth || 100; // FIX: Print Fallback
-                const responsiveScaleFactor = currentCssWidth / (stroke.baseWidth || currentCssWidth); 
+                if (currentCssHeight === 0) currentCssHeight = stroke.baseHeight || (stroke.baseWidth ? (stroke.baseWidth * 0.66) : 100); // best-effort fallback
+                const scaleW = currentCssWidth / (stroke.baseWidth || currentCssWidth);
+                const scaleH = (stroke.baseHeight ? (currentCssHeight / stroke.baseHeight) : scaleW);
+                // ✅ Uniform scaling: prevents "overstretching" when aspect ratio changes (tablet rotate/fullscreen)
+                const responsiveScaleFactor = Math.min(scaleW, scaleH); 
                 const rawStrokeWidth = stroke.width; 
                 let visualBaseWidth; 
                 if (isOfferCanvas) { visualBaseWidth = rawStrokeWidth === 2 ? 2.5 : rawStrokeWidth === 4 ? 5 : 8; } else { visualBaseWidth = rawStrokeWidth === 2 ? 2 : rawStrokeWidth === 4 ? 3 : 5; } 
                 const normalizedBaseLineWidth = (visualBaseWidth * responsiveScaleFactor); 
                 if (stroke.tool === 'eraser') { ctx.lineWidth = normalizedBaseLineWidth * 4; ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; } else if (stroke.tool === 'highlighter') { ctx.lineWidth = normalizedBaseLineWidth * 3; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'destination-over'; } else { ctx.lineWidth = normalizedBaseLineWidth; ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.opacity; ctx.globalCompositeOperation = 'source-over'; } 
-                if (stroke.points.length > 0) { const startX = stroke.points[0].x * responsiveScaleFactor; const startY = stroke.points[0].y * responsiveScaleFactor; ctx.moveTo(startX, startY); stroke.points.slice(1).forEach(point => { const lineToX = point.x * responsiveScaleFactor; const lineToY = point.y * responsiveScaleFactor; ctx.lineTo(lineToX, lineToY); }); } 
+                if (stroke.points.length > 0) {
+                    const pts = stroke.points.map(p => ({ x: p.x * responsiveScaleFactor, y: p.y * responsiveScaleFactor }));
+                    ctx.moveTo(pts[0].x, pts[0].y);
+                    const isSmooth = (stroke.tool === 'fountain' || stroke.tool === 'ballpen');
+                    if (isSmooth && pts.length >= 3) {
+                        // Quadratic smoothing via midpoints
+                        for (let i = 1; i < pts.length - 2; i++) {
+                            const xc = (pts[i].x + pts[i + 1].x) / 2;
+                            const yc = (pts[i].y + pts[i + 1].y) / 2;
+                            ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+                        }
+                        // last two points
+                        const pN1 = pts[pts.length - 2];
+                        const pN = pts[pts.length - 1];
+                        ctx.quadraticCurveTo(pN1.x, pN1.y, pN.x, pN.y);
+                    } else {
+                        pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+                    }
+                } 
                 ctx.stroke(); 
             }); 
             ctx.restore(); 
@@ -1891,7 +3251,77 @@ const resolveUserName = (raw) => {
             ctx.globalAlpha = 1; 
         };
 
-        const OfferCanvas = React.memo(({ canvasRef, label, icon, statusKey, status, setStatus,  inputMode, startDrawing, draw, stopDrawing, textValue, handleTextChange, textStyle, textSize, drawnStrokes, setDrawnStrokes, scaleRef, triggerRedraw, image, onClearImage, imageTransform, onUpdateImageTransform , followUpInfo, onOpenBundleModal}) => { const SIZE_DIFFERENCE_THRESHOLD = 5; const toggleStatus = (newStatus) => {
+        const OfferCanvas = React.memo(({
+            canvasRef, label, icon, statusKey, status, setStatus,
+            inputMode, startDrawing, draw, stopDrawing,
+            textValue, handleTextChange,
+            textStyle, textSize,
+            drawnStrokes, setDrawnStrokes,
+            scaleRef, triggerRedraw,
+            image, onClearImage, onClearOverlay,
+            imageTransform, onUpdateImageTransform,
+            followUpInfo, onOpenBundleModal,
+            triggerToast
+        }) => {
+                const SIZE_DIFFERENCE_THRESHOLD = 5;
+
+                // Overlay-HTML ist global gespiegelt (wird unten in Window gesetzt)
+                const htmlGlobalKey = (statusKey === 'offer1') ? '__canvasHtmlOffer1' : (statusKey === 'offer2') ? '__canvasHtmlOffer2' : (statusKey === 'offer3') ? '__canvasHtmlOffer3' : null;
+                const htmlOverlay = htmlGlobalKey ? window[htmlGlobalKey] : null;
+
+                // ✅ Inhalterkennung direkt am Canvas (wichtig: auch nach Radieren korrekt)
+                const canvasHasVisibleInkLocal = (canvas) => {
+                    try {
+                        if (!canvas) return false;
+                        const w = canvas.width || 0;
+                        const h = canvas.height || 0;
+                        if (!w || !h) return false;
+                        const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+                        if (!ctx2d) return false;
+
+                        // Sample-Scan (Performance): nicht jedes Pixel, aber zuverlässig
+                        const step = Math.max(4, Math.floor(Math.min(w, h) / 80));
+                        const img = ctx2d.getImageData(0, 0, w, h);
+                        const d = img.data;
+
+                        for (let y = 0; y < h; y += step) {
+                            const row = y * w * 4;
+                            for (let x = 0; x < w; x += step) {
+                                const a = d[row + x * 4 + 3];
+                                if (a && a > 0) return true;
+                            }
+                        }
+                        return false;
+                    } catch (_) {
+                        return false;
+                    }
+                };
+
+                const cEl = (canvasRef && canvasRef.current) ? canvasRef.current : null;
+                const hasInk = cEl ? canvasHasVisibleInkLocal(cEl) : !!(drawnStrokes && drawnStrokes.length);
+                const hasText = !!String(textValue || '').trim();
+                const hasOverlay = !!(image || htmlOverlay);
+                const isEmpty = !(hasInk || hasText || hasOverlay);
+
+                // Auto-Inhalterkennung:
+                // - Wenn leer -> Status immer neutral (kein "Offen/Abgeschlossen" noetig)
+                // - Wenn Inhalt vorhanden -> User kann "Offen" oder "Abgeschlossen" setzen
+                React.useEffect(() => {
+                    try {
+                        if (isEmpty && status !== 'neutral') {
+                            setStatus(prev => ({ ...prev, [statusKey]: 'neutral' }));
+                        }
+                    } catch (e) { /* ignore */ }
+                }, [isEmpty, status, statusKey, setStatus]);
+
+                const toggleStatus = (newStatus) => {
+                    // Wenn der Bereich leer ist, kein Status-Wechsel erzwingen (bleibt neutral)
+                    if (isEmpty) {
+                        try { triggerToast && triggerToast('Status nur noetig, wenn im Feld Inhalt vorhanden ist.'); } catch(e) {}
+                        setStatus(prev => ({ ...prev, [statusKey]: 'neutral' }));
+                        return;
+                    }
+
                     if (newStatus === 'closed') {
                         setStatus(prev => ({ ...prev, [statusKey]: (prev[statusKey] === 'closed' ? 'neutral' : 'closed') }));
                         return;
@@ -1900,15 +3330,205 @@ const resolveUserName = (raw) => {
                         setStatus(prev => ({ ...prev, [statusKey]: (prev[statusKey] === 'open' ? 'neutral' : 'open') }));
                         return;
                     }
-                }; const isOpen = status === 'open'; const isClosed = status === 'closed'; let statusClass = 'border-slate-300'; if (isOpen) statusClass = 'border-red-500 ring-4 ring-red-100/50'; else if (isClosed) statusClass = 'border-green-500 ring-4 ring-green-100/50'; const containerClasses = `offer-canvas-container ${statusClass} flex flex-col min-h-[600px]`; const getOfferTextClasses = () => { let classes = "absolute inset-0 w-full h-full p-4 bg-transparent resize-none focus:ring-0 focus:outline-none z-30 leading-relaxed "; if (textSize === 'small') classes += "text-base "; else if (textSize === 'medium') classes += "text-lg "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; classes += inputMode === 'pen' ? 'pointer-events-none text-slate-800' : 'pointer-events-auto text-slate-800'; return classes; }; useEffect(() => { const canvas = canvasRef.current; if (!canvas || !drawnStrokes) return; const rect = canvas.getBoundingClientRect(); const currentWidth = rect.width; let baseWidth = scaleRef.current.baseWidth; if (baseWidth === 0) { scaleRef.current.baseWidth = currentWidth; baseWidth = currentWidth; } const scaleFactor = currentWidth / baseWidth; redrawCanvas(canvas, drawnStrokes, scaleFactor, statusKey); if (Math.abs(currentWidth - baseWidth) > SIZE_DIFFERENCE_THRESHOLD) { scaleRef.current.baseWidth = currentWidth; } }, [canvasRef, drawnStrokes, triggerRedraw]); useEffect(() => { const canvas = canvasRef.current; if (canvas && scaleRef.current.baseWidth === 0) { const rect = canvas.getBoundingClientRect(); scaleRef.current.baseWidth = rect.width; } }, [canvasRef]); const isPenMode = inputMode === 'pen'; const { x, y, scale, rotation } = imageTransform; 
+                };
+
+                const isOpen = status === 'open'; const isClosed = status === 'closed'; let statusClass = 'border-slate-300'; if (isOpen) statusClass = 'border-red-500 ring-4 ring-red-100/50'; else if (isClosed) statusClass = 'border-green-500 ring-4 ring-green-100/50'; const containerClasses = `offer-canvas-container ${statusClass} flex flex-col min-h-[420px] md:min-h-[600px]`; const getOfferTextClasses = () => { let classes = "absolute inset-0 w-full h-full p-4 bg-transparent resize-none focus:ring-0 focus:outline-none z-20 leading-relaxed "; if (textSize === 'small') classes += "text-base "; else if (textSize === 'medium') classes += "text-lg "; else if (textSize === 'large') classes += "text-xl "; if (textStyle.bold) classes += "font-black "; else classes += "font-medium "; if (textStyle.italic) classes += "italic "; classes += inputMode === 'pen' ? 'pointer-events-none text-slate-800' : 'pointer-events-auto text-slate-800'; return classes; }; useEffect(() => { const canvas = canvasRef.current; if (!canvas || !drawnStrokes) return; const rect = canvas.getBoundingClientRect(); const currentWidth = rect.width; let baseWidth = scaleRef.current.baseWidth; if (baseWidth === 0) { scaleRef.current.baseWidth = currentWidth; baseWidth = currentWidth; } const scaleFactor = currentWidth / baseWidth; redrawCanvas(canvas, drawnStrokes, scaleFactor, statusKey); if (Math.abs(currentWidth - baseWidth) > SIZE_DIFFERENCE_THRESHOLD) { scaleRef.current.baseWidth = currentWidth; } }, [canvasRef, drawnStrokes, triggerRedraw]); useEffect(() => { const canvas = canvasRef.current; if (canvas && scaleRef.current.baseWidth === 0) { const rect = canvas.getBoundingClientRect(); scaleRef.current.baseWidth = rect.width; } }, [canvasRef]); const isPenMode = inputMode === 'pen'; const { x, y, scale, rotation } = imageTransform; const [overlayEditEnabled, setOverlayEditEnabled] = useState(false);
+                useEffect(() => { try { setOverlayEditEnabled(false); } catch(_) {} }, [image, htmlOverlay]);
+
+        // Sobald ein neues Bundle/Bild eingefügt wurde: Edit-Modus wieder deaktivieren, damit Zeichnen sofort funktioniert.
+        useEffect(() => { try { setOverlayEditEnabled(false); } catch(_) {} }, [image, htmlOverlay]);
+        useEffect(() => { try { setOverlayEditEnabled(false); } catch(_) {} }, [image, htmlOverlay]);
+        useEffect(() => { try { setOverlayEditEnabled(false); } catch(_) {} }, [image, htmlOverlay]);
+        const [overlayMode, setOverlayMode] = useState(null);
         const interactionStateRef = useRef({ isDragging: false, isScaling: false, startX: 0, startY: 0, initialX: 0, initialY: 0, initialScale: 1.0, initialDistance: 0, initialRotation: 0, initialAngle: 0, mode: null });
         const pointerCacheRef = useRef({}); 
         const getClientCoords = (e) => { const clientX = e.clientX ?? e.touches?.[0]?.clientX; const clientY = e.clientY ?? e.touches?.[0]?.clientY; if (clientX === undefined || clientY === undefined) return null; return { clientX, clientY }; }; 
-        const handleInteractionStart = useCallback((e) => { if (!isPenMode || !image) return; e.preventDefault(); e.stopPropagation(); const { clientX, clientY } = getClientCoords(e); if (clientX === undefined || clientY === undefined) return; pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; const pointerIds = Object.keys(pointerCacheRef.current); if (pointerIds.length === 1) { interactionStateRef.current = { isDragging: true, isScaling: false, startX: clientX, startY: clientY, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' }; } else if (pointerIds.length >= 2) { const [id1, id2] = pointerIds; const p1 = pointerCacheRef.current[id1]; const p2 = pointerCacheRef.current[id2]; const initialDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const initialAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: initialDistance, initialScale: scale, initialRotation: rotation, initialAngle: initialAngle, mode: 'scale' }; } else { interactionStateRef.current.mode = null; } e.target.setPointerCapture(e.pointerId); }, [isPenMode, image, x, y, scale, rotation]); 
-        const handleInteractionMove = useCallback((e) => { if (!image) return; const { clientX, clientY } = getClientCoords(e); if (clientX === undefined || clientY === undefined) return; pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY }; const pointerIds = Object.keys(pointerCacheRef.current); const mode = interactionStateRef.current.mode; if (pointerIds.length === 1 && mode === 'drag') { e.preventDefault(); e.stopPropagation(); const { startX, startY, initialX, initialY } = interactionStateRef.current; const dx = clientX - startX; const dy = clientY - startY; onUpdateImageTransform(statusKey, { x: initialX + dx, y: initialY + dy }); } else if (pointerIds.length >= 2 && mode === 'scale') { e.preventDefault(); e.stopPropagation(); const { initialDistance, initialScale, initialRotation, initialAngle } = interactionStateRef.current; const relevantIds = Object.keys(pointerCacheRef.current).slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; if (!p1 || !p2) return; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const ratio = currentDistance / initialDistance; let newScale = initialScale * ratio; newScale = Math.min(2.5, Math.max(0.25, newScale)); newScale = Math.round(newScale * 100) / 100; const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); const angleDelta = currentAngle - initialAngle; const rotationDeltaDeg = angleDelta * (180 / Math.PI); let newRotation = (initialRotation + rotationDeltaDeg); newRotation = Math.round(newRotation * 10) / 10; if (newScale !== scale || newRotation !== rotation) { onUpdateImageTransform(statusKey, { scale: newScale, rotation: newRotation }); } } }, [image, onUpdateImageTransform, statusKey, scale, rotation]); 
-        const handleInteractionEnd = useCallback((e) => { e.target.releasePointerCapture(e.pointerId); delete pointerCacheRef.current[e.pointerId]; const pointerIds = Object.keys(pointerCacheRef.current); if (pointerIds.length === 0) { interactionStateRef.current.mode = null; interactionStateRef.current.isDragging = false; interactionStateRef.current.isScaling = false; } else if (pointerIds.length === 1) { const remainingId = pointerIds[0]; const p = pointerCacheRef.current[remainingId]; interactionStateRef.current = { isDragging: true, isScaling: false, startX: p.x, startY: p.y, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' }; } else if (pointerIds.length >= 2) { const relevantIds = pointerIds.slice(0, 2); const p1 = pointerCacheRef.current[relevantIds[0]]; const p2 = pointerCacheRef.current[relevantIds[1]]; const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y); const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x); interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: currentDistance, initialScale: scale, initialRotation: rotation, initialAngle: currentAngle, mode: 'scale' }; } e.preventDefault(); e.stopPropagation(); }, [x, y, scale, rotation]); 
-        const handleImageReset = () => { onUpdateImageTransform(statusKey, { x: 0, y: 0, scale: 1.0, rotation: 0 }); }; 
-        return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{statusKey === 'offer1' && typeof onOpenBundleModal === 'function' ? (<div className="relative"><button onClick={(e) => { e.stopPropagation(); onOpenBundleModal('customer'); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Bundle (Kundenansicht)"><Icon d={ICONS.Smartphone} size={16}/></button><button onClick={(e) => { e.stopPropagation(); onOpenBundleModal('admin'); }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white/90 border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center" title="Bundle Admin"><Icon d={ICONS.Lock} size={10}/></button></div>) : null}{image && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={handleImageReset} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}{image && (<button onClick={onClearImage} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eingefügtes Bild entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button data-print-keep="1" onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button data-print-keep="1" onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div>
+        const longPressTimerRef = useRef(null);
+        const longPressMetaRef = useRef({ active: false, x: 0, y: 0, pointerId: null });
+
+        const hardEndInteraction = useCallback(() => {
+            try { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; } } catch(_) {}
+            longPressMetaRef.current = { active: false, x: 0, y: 0, pointerId: null };
+            pointerCacheRef.current = {};
+            interactionStateRef.current = { isDragging: false, isScaling: false, startX: 0, startY: 0, initialX: 0, initialY: 0, initialScale: scale, initialDistance: 0, initialRotation: rotation, initialAngle: 0, mode: null };
+            try { setOverlayMode(null); } catch(_) {}
+        }, [scale, rotation, setOverlayMode]);
+
+        // Wichtig: Falls der Pointer außerhalb losgelassen wird (Mouse/Touch), damit das "Festhängen" nie passiert.
+        useEffect(() => {
+            const onUp = () => { if (interactionStateRef.current.mode) hardEndInteraction(); };
+            window.addEventListener('pointerup', onUp, true);
+            window.addEventListener('pointercancel', onUp, true);
+            window.addEventListener('blur', onUp, true);
+            return () => {
+                window.removeEventListener('pointerup', onUp, true);
+                window.removeEventListener('pointercancel', onUp, true);
+                window.removeEventListener('blur', onUp, true);
+            };
+        }, [hardEndInteraction]);
+
+        const handleInteractionStart = useCallback((e) => {
+            if (!hasOverlay) return;
+            // Rechtsklick-Menü nicht blockieren (dafür gibt es onContextMenu)
+            e.preventDefault();
+            e.stopPropagation();
+
+            const { clientX, clientY } = getClientCoords(e);
+            if (clientX === undefined || clientY === undefined) return;
+
+            // Pointer registrieren
+            pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY };
+
+            // Pointer Capture (stabiler Drag)
+            try { e.currentTarget?.setPointerCapture?.(e.pointerId); } catch(_) {}
+
+            // Nur wenn der User explizit den Bearbeiten/Move-Modus aktiviert hat.
+            if (!overlayEditEnabled) return;
+
+            const pointerIds = Object.keys(pointerCacheRef.current);
+            if (pointerIds.length >= 2) {
+                const [id1, id2] = pointerIds;
+                const p1 = pointerCacheRef.current[id1];
+                const p2 = pointerCacheRef.current[id2];
+                const initialDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                const initialAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance, initialScale: scale, initialRotation: rotation, initialAngle, mode: 'scale' };
+                try { setOverlayMode('scale'); } catch(_) {}
+                try { setOverlayMode('scale'); } catch(_) {}
+            } else {
+                // 1 Pointer -> Drag
+                interactionStateRef.current = {
+                    isDragging: true,
+                    isScaling: false,
+                    startX: clientX,
+                    startY: clientY,
+                    initialX: x,
+                    initialY: y,
+                    initialScale: scale,
+                    initialRotation: rotation,
+                    initialDistance: 0,
+                    initialAngle: 0,
+                    mode: 'drag'
+                };
+                try { setOverlayMode('drag'); } catch(_) {}
+            }
+        }, [hasOverlay, overlayEditEnabled, x, y, scale, rotation]);
+
+        const handleInteractionMove = useCallback((e) => {
+            if (!hasOverlay) return;
+            const { clientX, clientY } = getClientCoords(e);
+            if (clientX === undefined || clientY === undefined) return;
+
+            // Long-press abbrechen wenn man zu früh "rutscht"
+            if (longPressMetaRef.current.active && longPressMetaRef.current.pointerId === e.pointerId) {
+                const dx0 = clientX - longPressMetaRef.current.x;
+                const dy0 = clientY - longPressMetaRef.current.y;
+                if (Math.hypot(dx0, dy0) > 8) {
+                    longPressMetaRef.current.active = false;
+                    try { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; } } catch(_) {}
+                }
+            }
+
+            pointerCacheRef.current[e.pointerId] = { x: clientX, y: clientY };
+            const pointerIds = Object.keys(pointerCacheRef.current);
+            const mode = interactionStateRef.current.mode;
+
+            if (pointerIds.length === 1 && mode === 'drag') {
+                e.preventDefault();
+                e.stopPropagation();
+                const { startX, startY, initialX, initialY } = interactionStateRef.current;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                onUpdateImageTransform(statusKey, { x: initialX + dx, y: initialY + dy });
+            } else if (pointerIds.length >= 2 && mode === 'scale') {
+                e.preventDefault();
+                e.stopPropagation();
+                const { initialDistance, initialScale, initialRotation, initialAngle } = interactionStateRef.current;
+                const relevantIds = Object.keys(pointerCacheRef.current).slice(0, 2);
+                const p1 = pointerCacheRef.current[relevantIds[0]];
+                const p2 = pointerCacheRef.current[relevantIds[1]];
+                if (!p1 || !p2) return;
+                const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                const ratio = currentDistance / initialDistance;
+                let newScale = initialScale * ratio;
+                newScale = Math.min(2.5, Math.max(0.25, newScale));
+                newScale = Math.round(newScale * 100) / 100;
+                const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                const angleDelta = currentAngle - initialAngle;
+                const rotationDeltaDeg = angleDelta * (180 / Math.PI);
+                let newRotation = (initialRotation + rotationDeltaDeg);
+                newRotation = Math.round(newRotation * 10) / 10;
+                if (newScale !== scale || newRotation !== rotation) {
+                    onUpdateImageTransform(statusKey, { scale: newScale, rotation: newRotation });
+                }
+            }
+        }, [hasOverlay, onUpdateImageTransform, statusKey, scale, rotation]);
+
+        const handleInteractionEnd = useCallback((e) => {
+            // Long press cleanup
+            if (longPressMetaRef.current.pointerId === e.pointerId) {
+                longPressMetaRef.current.active = false;
+                try { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; } } catch(_) {}
+            }
+
+            try { e.currentTarget?.releasePointerCapture?.(e.pointerId); } catch(_) {}
+            delete pointerCacheRef.current[e.pointerId];
+
+            const pointerIds = Object.keys(pointerCacheRef.current);
+            if (pointerIds.length === 0) {
+                interactionStateRef.current.mode = null;
+                try { setOverlayMode(null); } catch(_) {}
+                interactionStateRef.current.isDragging = false;
+                interactionStateRef.current.isScaling = false;
+                try { setOverlayMode(null); } catch(_) {}
+            } else if (pointerIds.length === 1) {
+                const remainingId = pointerIds[0];
+                const p = pointerCacheRef.current[remainingId];
+                interactionStateRef.current = { isDragging: true, isScaling: false, startX: p.x, startY: p.y, initialX: x, initialY: y, initialScale: scale, initialRotation: rotation, initialDistance: 0, initialAngle: 0, mode: 'drag' };
+                try { setOverlayMode('drag'); } catch(_) {}
+            } else if (pointerIds.length >= 2) {
+                const relevantIds = pointerIds.slice(0, 2);
+                const p1 = pointerCacheRef.current[relevantIds[0]];
+                const p2 = pointerCacheRef.current[relevantIds[1]];
+                const currentDistance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                const currentAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                interactionStateRef.current = { isDragging: false, isScaling: true, initialDistance: currentDistance, initialScale: scale, initialRotation: rotation, initialAngle: currentAngle, mode: 'scale' };
+                try { setOverlayMode('scale'); } catch(_) {}
+            }
+
+            // Wichtig: Nicht immer preventDefault erzwingen, sonst "klebt" Mouse manchmal im Browser.
+            if (interactionStateRef.current.mode) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, [x, y, scale, rotation]);
+
+        const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+        const bumpScale = (delta) => {
+            const next = Math.round(clamp((scale || 1) + delta, 0.25, 2.5) * 100) / 100;
+            onUpdateImageTransform(statusKey, { scale: next });
+        };
+        const bumpRotation = (deltaDeg) => {
+            const next = Math.round(((rotation || 0) + deltaDeg) * 10) / 10;
+            onUpdateImageTransform(statusKey, { rotation: next });
+        };
+        const toggleOverlayEdit = () => {
+            setOverlayEditEnabled(v => !v);
+            // Mode reset, damit nichts "klebt"
+            try { hardEndInteraction(); } catch(_) {}
+        };
+        const handleImageReset = () => { onUpdateImageTransform(statusKey, { x: 0, y: 0, scale: 0.8, rotation: 0 }); }; 
+        return (<div className={containerClasses} style={{transition: 'all 0.25s ease'}}> <div className="p-4 bg-white/90 border-b border-slate-100 relative z-10 shrink-0 flex flex-col"><div className="flex justify-between items-start"><div className="flex items-center gap-3 text-lg font-bold text-slate-800"><Icon d={icon} size={20} className="text-blue-600"/><span>{label}</span></div><div className="flex items-center gap-2">{(statusKey === 'offer1' || statusKey === 'offer2' || statusKey === 'offer3') && typeof onOpenBundleModal === 'function' ? (<button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenBundleModal('customer', statusKey); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Bundle öffnen"><Icon d={ICONS.Smartphone} size={16}/></button>) : null}{hasOverlay && (x !== 0 || y !== 0 || scale !== 1.0 || rotation !== 0) && (<button onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); handleImageReset(); }} className="p-1.5 rounded-full bg-slate-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Position/Skalierung/Rotation zurücksetzen"><Icon d={ICONS.RefreshCw} size={14}/></button>)}
+        {hasOverlay && (statusKey === 'offer1' || statusKey === 'offer2' || statusKey === 'offer3') && (
+            <>
+                <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); toggleOverlayEdit(); }} className={`p-1.5 rounded-full transition-colors ${overlayEditEnabled ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`} title={overlayEditEnabled ? 'Bearbeiten aktiv: Angebot kann bewegt/skaliert werden (Zeichnen ist dann gesperrt). Klick zum Sperren.' : 'Bearbeiten aus: Zeichnen ist frei. Klick um Angebot zu bewegen/skaliert zu bearbeiten.'}><Icon d={ICONS.Lock} size={16}/></button>
+                <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); setOverlayEditEnabled(true); bumpScale(-0.1); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Verkleinern"><Icon d={ICONS.ZoomOut} size={16}/></button>
+                <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); setOverlayEditEnabled(true); bumpScale(0.1); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Vergrößern"><Icon d={ICONS.ZoomIn} size={16}/></button>
+                <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); setOverlayEditEnabled(true); bumpRotation(-5); }} className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Drehen"><Icon d={ICONS.RotateCcw} size={16}/></button>
+                <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); (onClearOverlay||onClearImage)?.(statusKey); setOverlayEditEnabled(false); }} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Inhalt entfernen"><Icon d={ICONS.Trash} size={16}/></button>
+            </>
+        )}
+        {hasOverlay && !(statusKey === 'offer1' || statusKey === 'offer2' || statusKey === 'offer3') && (<button onClick={(onClearOverlay||onClearImage)} className="p-1.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Inhalt entfernen"><Icon d={ICONS.Trash} size={14}/></button>)}</div></div><div className="flex items-center gap-2 mt-2"><span className="text-[10px] font-medium text-slate-500 mr-1 uppercase">Status:</span><button data-print-keep="1" onClick={() => toggleStatus('open')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isOpen ? 'bg-red-500 text-white shadow-lg shadow-red-200/50' : 'text-slate-500 bg-red-50 border-red-200 hover:bg-red-100'}`}>{isOpen ? <Icon d={ICONS.AlertCircle} size={10}/> : null} Offen</button><button data-print-keep="1" onClick={() => toggleStatus('closed')} className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1 border ${isClosed ? 'bg-green-500 text-white shadow-lg shadow-green-200/50' : 'text-slate-500 bg-green-50 border-green-200 hover:bg-green-100'}`}>{isClosed ? <Icon d={ICONS.CheckCircle} size={10}/> : null} Abgeschlossen</button></div>
                     {followUpInfo && (followUpInfo.date || followUpInfo.time || followUpInfo.reason) ? (
                         <div className={`mt-3 mb-2 p-3 rounded-xl text-sm relative z-20 ${
                             status === 'open'
@@ -1931,7 +3551,7 @@ const resolveUserName = (raw) => {
                         </div>
                     ) : null}
 
-</div><div className="canvas-lines"></div>{image && (<div className="absolute inset-0 z-20" onPointerDown={isPenMode ? handleInteractionStart : undefined} onPointerMove={isPenMode ? handleInteractionMove : undefined} onPointerUp={isPenMode ? handleInteractionEnd : undefined} onPointerCancel={isPenMode ? handleInteractionEnd : undefined} onPointerLeave={isPenMode ? handleInteractionEnd : undefined} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: isPenMode ? (interactionStateRef.current.mode === 'drag' ? 'grabbing' : interactionStateRef.current.mode === 'scale' ? 'crosshair' : 'grab') : 'default', pointerEvents: isPenMode ? 'auto' : 'none', touchAction: 'none' }}><img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 0.7 }}/></div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
+</div>{hasOverlay && !(statusKey === 'offer1' || statusKey === 'offer2' || statusKey === 'offer3') && (<button type="button" onClick={(e) => { e.stopPropagation(); (onClearOverlay||onClearImage)?.(); }} className="absolute top-2 right-2 z-50 w-7 h-7 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-md hover:bg-red-700" title="Entfernen">✕</button>)}<div className="canvas-lines"></div>{hasOverlay && (<div className="absolute inset-0 z-40" onPointerDown={handleInteractionStart} onPointerMove={handleInteractionMove} onPointerUp={handleInteractionEnd} onPointerCancel={handleInteractionEnd} onPointerLeave={handleInteractionEnd} onContextMenu={(e)=>{ e.preventDefault(); e.stopPropagation(); (onClearOverlay||onClearImage)?.(); }} style={{ transform: `translate(${x}px, ${y}px)`, transition: 'none', cursor: (!overlayEditEnabled ? 'default' : (overlayMode === 'drag' ? 'grabbing' : (overlayMode === 'scale' ? 'crosshair' : 'grab'))), pointerEvents: overlayEditEnabled ? 'auto' : 'none', touchAction: overlayEditEnabled ? 'none' : 'auto' }}>{htmlOverlay ? (<div style={{ width: '100%', maxWidth: '920px', margin: '0 auto', boxSizing: 'border-box', padding: '0 10px', transform: `scale(${scale}) rotate(${rotation}deg)`, transformOrigin: 'top left', pointerEvents: 'none', userSelect: 'none' }} dangerouslySetInnerHTML={{ __html: htmlOverlay }} />) : (<img src={image} alt={`Eingefügtes Bild für ${label}`} className="canvas-image" style={{ transform: `scale(${scale}) rotate(${rotation}deg)`, transition: 'none', pointerEvents: 'none', opacity: 1 }}/>)}</div>)}<div className="relative flex-1 w-full h-full min-h-[100px] overflow-hidden"><textarea value={textValue || ''} onChange={(e) => handleTextChange(statusKey, e.target.value)} className={getOfferTextClasses()} placeholder={inputMode === 'keyboard' ? 'Details digital eingeben...' : ''} readOnly={inputMode === 'pen'} /><canvas ref={canvasRef} onPointerDown={(e) => startDrawing(e, canvasRef, statusKey)} onPointerMove={(e) => draw(e, canvasRef, statusKey)} onPointerUp={(e) => stopDrawing(e, canvasRef)} onPointerLeave={(e) => stopDrawing(e, canvasRef)} className="w-full h-full drawing-canvas absolute inset-0" style={{pointerEvents: inputMode === 'pen' ? 'auto' : 'none', touchAction: 'none'}}/></div></div>); });
         
         // --- SMALL INPUT CANVAS (Patched with drawing-canvas class) ---
         
@@ -1940,7 +3560,7 @@ const resolveUserName = (raw) => {
             inputMode, canvasRef, inputKey,
             inputValue = '', inputType = 'text', onChange, placeholder,
             drawnStrokes, setDrawnStrokes, readOnly = false,
-            startDrawing, draw, stopDrawing
+            startDrawing, draw, stopDrawing, triggerRedraw
         }) => {
             const isPen = inputMode === 'pen';
 
@@ -1950,7 +3570,7 @@ const resolveUserName = (raw) => {
                 if (isPen) {
                     redrawCanvas(canvas, drawnStrokes[inputKey], 1, inputKey);
                 }
-            }, [isPen, drawnStrokes, inputKey]);
+            }, [isPen, drawnStrokes, inputKey, triggerRedraw]);
 
             const clearSmallCanvas = () => {
                 const canvas = canvasRef.current;
@@ -2093,6 +3713,8 @@ function App() {
             const showShareButton = canNativeShare;
             // Drawing State
             const [tool, setTool] = useState('pen');
+            const [showPenToolPicker, setShowPenToolPicker] = useState(false);
+            const lastPenTapRef = useRef(0);
             const [color, setColor] = useState('#0044ff'); 
             const [strokeWidth, setStrokeWidth] = useState(4); 
             const [opacity, setOpacity] = useState(0.85); 
@@ -2124,6 +3746,52 @@ const toolRef = useRef('pen');
             const opacityRef = useRef(0.85);
             const colorRef = useRef('#0044ff'); 
 
+            // --- Tool helpers (Pen / Fountain / Ballpen) ---
+            const resolveToolForPointer = (selectedTool, pointerType) => {
+                // Finger-Eingabe soll "schöner" schreiben -> Füller als Fallback
+                if (pointerType === 'touch') {
+                    if (selectedTool === 'pen') return 'fountain';
+                }
+                return selectedTool;
+            };
+
+            const getToolTuning = (toolId, baseWidth, baseOpacity) => {
+                // WICHTIG: width muss in diesem Projekt in den "diskreten" Stufen bleiben,
+                // sonst wirkt der Strich nach dem Absetzen dicker (Redraw-Mapping 2/4/8).
+                const quantize = (w) => {
+                    const steps = [2, 4, 8];
+                    let best = steps[0], bestD = Math.abs(w - steps[0]);
+                    for (let i = 1; i < steps.length; i++) {
+                        const d = Math.abs(w - steps[i]);
+                        if (d < bestD) { bestD = d; best = steps[i]; }
+                    }
+                    return best;
+                };
+                const bw = quantize(baseWidth);
+
+                // Tool-Charakter: klar sichtbar unterschiedlich
+                // - Pen: Standard (mittlere Deckkraft)
+                // - Fountain: kräftiger + eine Stufe breiter
+                // - Ballpen: dünner + "leichter" (mehr Transparenz)
+                if (toolId === 'fountain') {
+                    const up = (bw === 2) ? 4 : (bw === 4) ? 8 : 8;
+                    return {
+                        width: up,
+                        opacity: 1,
+                        smooth: 1
+                    };
+                }
+                if (toolId === 'ballpen') {
+                    const down = (bw === 8) ? 4 : 2;
+                    return {
+                        width: down,
+                        opacity: Math.max(0.55, Math.min(0.75, baseOpacity)),
+                        smooth: 0.25
+                    };
+                }
+                return { width: bw, opacity: Math.min(1, baseOpacity), smooth: 0 };
+            };
+
             const digitalTouchedRef = useRef({}); // merkt: Feld wurde per Tastatur genutzt
 
 
@@ -2142,7 +3810,99 @@ const toolRef = useRef('pen');
             const scaleRef1 = useRef({ baseWidth: 0, scaleFactor: 1 });
             const scaleRef2 = useRef({ baseWidth: 0, scaleFactor: 1 });
             const scaleRef3 = useRef({ baseWidth: 0, scaleFactor: 1 });
-            const [redrawCounter, setRedrawCounter] = useState(0); 
+            const [redrawCounter, setRedrawCounter] = useState(0);
+            // ✅ Auto-Redraw + Smart-Shift bei Drehen/Resize/Vollbild (damit nichts rechts abgeschnitten wird)
+            useEffect(() => {
+                const setShift = (px) => {
+                    try { document.documentElement.style.setProperty('--PORTRAIT_SHIFT_PX', `${px}px`); } catch(_) {}
+                };
+
+                const applyPortraitShift = () => {
+                    // Nur im Hochformat relevant
+                    if (!(window.matchMedia && window.matchMedia('(orientation: portrait)').matches)) {
+                        setShift(0);
+                        return;
+                    }
+
+                    // Erst Shift resetten, dann echte Geometrie messen
+                    setShift(0);
+
+                    requestAnimationFrame(() => {
+                        try {
+                            const pad = 8; // Sicherheitsabstand links/rechts
+                            const vv = window.visualViewport;
+                            const vw = Math.max(1, Math.round((vv && vv.width) || window.innerWidth || document.documentElement.clientWidth || 0));
+
+                            // Versuche ein sichtbares Haupt-Layout zu messen (stabiler als scrollWidth im Vollbild)
+                            const el =
+                                document.querySelector('.situation-view-wrapper') ||
+                                document.querySelector('.print-offer-view') ||
+                                document.querySelector('.print-situation-view');
+
+                            if (!el) {
+                                setShift(0);
+                                return;
+                            }
+
+                            const r = el.getBoundingClientRect();
+
+                            // Shift-Spanne, die "passt": links >= pad und rechts <= vw - pad
+                            const minShift = (vw - pad) - r.right; // (negativ => nach links)
+                            const maxShift = pad - r.left;         // (positiv => nach rechts)
+
+                            let shift = 0;
+
+                            if (minShift <= maxShift) {
+                                // Wähle den Shift, der 0 am nächsten ist, aber innerhalb der Spanne liegt
+                                if (shift < minShift) shift = minShift;
+                                if (shift > maxShift) shift = maxShift;
+                            } else {
+                                // Inhalt ist breiter als viewport: priorisiere, dass links nichts abgeschnitten wird
+                                shift = maxShift;
+                            }
+
+                            // Runden + Limit gegen "zu viel"
+                            shift = Math.round(shift);
+                            shift = Math.max(Math.min(shift, 120), -120);
+
+                            // Nur setzen, wenn wirklich nötig (verhindert unnötiges Springen)
+                            if (Math.abs(shift) <= 1) shift = 0;
+
+                            setShift(shift);
+                        } catch (_) {
+                            setShift(0);
+                        }
+                    });
+                };
+                const handle = () => {
+                    // doppelt rAF: erst Layout settle, dann Shift + Redraw
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            applyPortraitShift();
+                            setRedrawCounter(r => r + 1);
+                        });
+                    });
+                };
+
+                // initial
+                handle();
+
+                window.addEventListener('resize', handle);
+                window.addEventListener('orientationchange', handle);
+                document.addEventListener('fullscreenchange', handle);
+
+                // Mobile: visualViewport kann bei Vollbild/Browser-UI ändern ohne klassisches resize
+                const vv = window.visualViewport;
+                if (vv && vv.addEventListener) vv.addEventListener('resize', handle);
+
+                return () => {
+                    window.removeEventListener('resize', handle);
+                    window.removeEventListener('orientationchange', handle);
+                    document.removeEventListener('fullscreenchange', handle);
+                    if (vv && vv.removeEventListener) vv.removeEventListener('resize', handle);
+                };
+            }, []);
+ 
             const hasMigratedSituationRef = useRef(false);
             
             useEffect(() => { toolRef.current = tool; }, [tool]);
@@ -2158,11 +3918,13 @@ const toolRef = useRef('pen');
 
             
 // ===== Bundle IFrame (extern) =====
-const BUNDLE_URL = "https://jefferson990.github.io/Pilot-Verkaufsmappe/"; // <-- hier deinen Bundle-Link eintragen
+const BUNDLE_URL = "https://jefferson990.github.io/Verkaufsmappe/"; // <-- hier deinen Bundle-Link eintragen
 const [showBundleModal, setShowBundleModal] = useState(false);
 const [bundleModalUrl, setBundleModalUrl] = useState(BUNDLE_URL);
+const [bundleTargetKey, setBundleTargetKey] = useState('offer1');
 
-const openBundleModal = useCallback((mode = 'customer') => {
+const openBundleModal = useCallback((mode = 'customer', targetKey = 'offer1') => {
+    setBundleTargetKey(targetKey);
     const url = (mode === 'admin') ? `${BUNDLE_URL}#admin` : BUNDLE_URL;
     setBundleModalUrl(url);
     setShowBundleModal(true);
@@ -2272,8 +4034,7 @@ const [showSkipReasonModal, setShowSkipReasonModal] = useState(false);
                 setFollowUpIndex(0);
                 setFinishAfterFollowUp(false);
             };
-
-            const isReadyToFinish = Object.values(canvasStatus).every(s => s === 'open' || s === 'closed');
+            // isReadyToFinish wird weiter unten nach Inhalterkennung berechnet
 
             
             const [customerSignature, setCustomerSignature] = useState(null);
@@ -2323,6 +4084,15 @@ const fileInputRef = useRef(null);
             const [toastMessage, setToastMessage] = useState(null); 
             const toastTimerRef = useRef(null);
             const [canvasImages, setCanvasImages] = useState({ offer1: null, offer2: null, offer3: null });
+            const [canvasHtml, setCanvasHtml] = React.useState({ offer1: null, offer2: null, offer3: null });
+
+            // Brücke für die OfferCanvas-Komponente (minimal-invasiv)
+            React.useEffect(() => {
+                window.__canvasHtmlOffer1 = canvasHtml.offer1 || null;
+                window.__canvasHtmlOffer2 = canvasHtml.offer2 || null;
+                window.__canvasHtmlOffer3 = canvasHtml.offer3 || null;
+            }, [canvasHtml.offer1, canvasHtml.offer2, canvasHtml.offer3]);
+
             const [isImageSelectModalOpen, setIsImageSelectModalOpen] = useState(false);
             const [currentImagePayload, setCurrentImagePayload] = useState(null);
             
@@ -2332,15 +4102,122 @@ const fileInputRef = useRef(null);
 
             const triggerToast = (message) => { clearTimeout(toastTimerRef.current); setToastMessage(message); toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000); };
 
-            // ===== Bundle -> Canva 1 (Screenshot/Bild) =====
-            const importBundleToCanva1 = useCallback((dataUrl) => {
-                if (!dataUrl) return;
-                setCanvasImages(prev => ({ ...prev, offer1: dataUrl }));
-                setImageTransform(prev => ({ ...prev, offer1: { x: 0, y: 0, scale: 1.0, rotation: 0 } }));
-                triggerToast('Bundle in Canva 1 übernommen.');
-                // Optional: Modal schließen
-                setShowBundleModal(false);
-            }, [triggerToast]);
+
+            // === Inhalterkennung Offer-Canvas (Status nur bei Inhalt erforderlich) ===
+            // === Inhalterkennung Offer-Canvas (wichtig: auch nach Radieren korrekt) ===
+            const getOfferCanvasElByKey = (k) => {
+                try {
+                    if (k === 'offer1') return offerCanvasRef1?.current || null;
+                    if (k === 'offer2') return offerCanvasRef2?.current || null;
+                    if (k === 'offer3') return offerCanvasRef3?.current || null;
+                    return null;
+                } catch(_) { return null; }
+            };
+
+            // Prüft echte Pixel auf dem Canvas (nicht nur "Strokes-Liste"),
+            // damit "Fertigstellen" nach komplettem Radieren wieder möglich ist.
+            const canvasHasVisibleInk = (canvas) => {
+                try {
+                    if (!canvas) return false;
+                    const w = canvas.width || 0;
+                    const h = canvas.height || 0;
+                    if (w === 0 || h === 0) return false;
+
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    if (!ctx) return false;
+
+                    // Sample-Scan: nicht jedes Pixel (Performance), aber zuverlässig genug.
+                    const step = Math.max(4, Math.floor(Math.min(w, h) / 80)); // adaptiv
+                    const img = ctx.getImageData(0, 0, w, h);
+                    const data = img.data;
+
+                    for (let y = 0; y < h; y += step) {
+                        const row = y * w * 4;
+                        for (let x = 0; x < w; x += step) {
+                            const a = data[row + x * 4 + 3]; // alpha
+                            if (a && a > 0) return true;
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    // Falls der Canvas "tainted" wäre oder readback nicht geht:
+                    return false;
+                }
+            };
+
+const isOfferAreaNonEmpty = React.useCallback((k) => {
+                try {
+                    const hasText = !!String(getDisplayText(k) || '').trim();
+                    const cEl = getOfferCanvasElByKey(k);
+                    const hasInk = (cEl ? canvasHasVisibleInk(cEl) : !!(drawnStrokes && drawnStrokes[k] && drawnStrokes[k].length));
+                    const hasImg = !!(canvasImages && canvasImages[k]);
+                    const hasHtml = !!((k === 'offer1') ? window.__canvasHtmlOffer1 : (k === 'offer2') ? window.__canvasHtmlOffer2 : (k === 'offer3') ? window.__canvasHtmlOffer3 : null);
+                    return hasText || hasInk || hasImg || hasHtml;
+                } catch (e) {
+                    return false;
+                }
+            }, [getDisplayText, drawnStrokes, canvasImages]);
+
+            const isReadyToFinish = ['offer1','offer2','offer3'].every(k => {
+                if (!isOfferAreaNonEmpty(k)) return true; // leer -> keine Status-Pflicht
+                const s = (canvasStatus && canvasStatus[k]) ? canvasStatus[k] : 'neutral';
+                return (s === 'open' || s === 'closed');
+            });
+
+            // ===== Bundle -> Ziel-Canva (HTML bevorzugt, Fallback Bild) =====
+            const importBundleToCanvas = React.useCallback((payload) => {
+                if (!payload) return;
+                const key = bundleTargetKey || 'offer1';
+
+                const calcCenteredY = () => {
+                    try {
+                        const containers = document.querySelectorAll('.offer-canvas-container');
+                        const idx = (key === 'offer2') ? 1 : (key === 'offer3') ? 2 : 0;
+                        const el = containers && containers[idx];
+                        const h = el ? (el.clientHeight || 0) : 0;
+                        // Overlay-Card ist ca. 320px hoch; wir starten mit scale 0.8 => ~256px.
+                        const approxOverlayH = 320 * 0.8;
+                        const y = Math.round((h > 0 ? (h - approxOverlayH) / 2 : 140));
+                        // Nie ganz oben, damit Icons frei bleiben
+                        return Math.max(110, y);
+                    } catch (e) {
+                        return 140;
+                    }
+                };
+
+                const applyCenteredY = () => {
+                    const y = calcCenteredY();
+                    setImageTransform(prev => ({
+                        ...prev,
+                        [key]: { ...(prev[key] || { x: 0, y: 0, scale: 0.8, rotation: 0 }), y, x: 0, scale: 0.8, rotation: 0 }
+                    }));
+                };
+
+                // 1) HTML-Import (Scharf)
+                if (typeof payload === 'object' && payload.kind === 'html') {
+                    setCanvasHtml(prev => ({ ...prev, [key]: payload.html || null }));
+                    setCanvasImages(prev => ({ ...prev, [key]: null })); // Bild leeren
+
+                    // Nach Render: mittig positionieren (damit die Toolbar-Icons nicht verdeckt werden)
+                    requestAnimationFrame(() => requestAnimationFrame(applyCenteredY));
+
+                    triggerToast('Bundle (HTML – scharf) eingefügt.');
+                    setShowBundleModal(false);
+                    return;
+                }
+
+                // 2) Fallback: Bild-Import
+                if (typeof payload === 'string') {
+                    setCanvasImages(prev => ({ ...prev, [key]: payload }));
+                    setCanvasHtml(prev => ({ ...prev, [key]: null }));
+
+                    // Nach Render: mittig positionieren
+                    requestAnimationFrame(() => requestAnimationFrame(applyCenteredY));
+
+                    triggerToast('Bundle (Bild) eingefügt.');
+                    setShowBundleModal(false);
+                }
+            }, [triggerToast, bundleTargetKey]);
 
 
             // ===== Fullscreen Toggle (F11-like) =====
@@ -2372,17 +4249,95 @@ const fileInputRef = useRef(null);
             const openOneDriveLink = () => { if (oneDriveLink && oneDriveLink.startsWith('http')) { window.open(oneDriveLink, '_blank'); triggerToast('Aktionsmappe geöffnet.'); } else { triggerToast('WICHTIG: Kein gültiger OneDrive Link hinterlegt. Bitte pflegen Sie den Link in den Einstellungen.'); } };
             const handleFileSelect = (event) => { const file = event.target.files?.[0]; event.target.value = null; setRedrawCounter(r => r + 1); if (!file) { triggerToast('Datei-Auswahl abgebrochen.'); return; } if (!file.type.startsWith('image/') && !file.type.includes('pdf')) { triggerToast(`Datei "${file.name}" ausgewählt. Nur Bilder werden visuell platziert.`); return; } const reader = new FileReader(); reader.onload = (e) => { const imageDataUrl = e.target.result; setCurrentImagePayload({ url: imageDataUrl, name: file.name }); setIsImageSelectModalOpen(true); }; reader.readAsDataURL(file); };
             const handleFileAdd = () => { fileInputRef.current?.click(); };
-            const handleImagePlacement = (targetCanvasKey) => { if (currentImagePayload) { setCanvasImages(prev => ({ ...prev, [targetCanvasKey]: currentImagePayload.url })); setImageTransform(prev => ({ ...prev, [targetCanvasKey]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild "${currentImagePayload.name}" zu ${targetCanvasKey.toUpperCase()} hinzugefügt.`); } setIsImageSelectModalOpen(false); setCurrentImagePayload(null); };
+            const handleImagePlacement = (targetCanvasKey) => { if (currentImagePayload) { setCanvasImages(prev => ({ ...prev, [targetCanvasKey]: currentImagePayload.url })); setImageTransform(prev => ({ ...prev, [targetCanvasKey]: { x: 0, y: 0, scale: 0.8, rotation: 0 } })); triggerToast(`Bild "${currentImagePayload.name}" zu ${targetCanvasKey.toUpperCase()} hinzugefügt.`); } setIsImageSelectModalOpen(false); setCurrentImagePayload(null); };
             const handleClearImage = (key) => { setCanvasImages(prev => ({ ...prev, [key]: null })); setImageTransform(prev => ({ ...prev, [key]: { x: 0, y: 0, scale: 1.0, rotation: 0 } })); triggerToast(`Bild von ${key.toUpperCase()} entfernt.`); };
-            
+            const handleClearOverlay = (key) => {
+                // Wichtig: Beim Entfernen NICHT den Transform auf 1.0 resetten – das verursacht ein kurzes "Großziehen"
+                // durch die Transition. Wir behalten den aktuellen Transform (oder Default), damit es visuell sofort verschwindet.
+                setCanvasImages(prev => ({ ...prev, [key]: null }));
+                setCanvasHtml(prev => ({ ...prev, [key]: null }));
+                setImageTransform(prev => ({ ...prev, [key]: (prev && prev[key]) ? prev[key] : { x: 0, y: 0, scale: 0.8, rotation: 0 } }));
+                triggerToast(`Inhalt von ${key.toUpperCase()} entfernt.`);
+            };
+
+            // === PRINT: Hintergrund-Layer als IMG (druckt auch ohne "Hintergrundgrafiken") ===
+            const PRINT_BG_SVG = {
+                blue50: "data:image/svg+xml;charset=utf-8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#eff6ff'/></svg>"),
+                slate100: "data:image/svg+xml;charset=utf-8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='#f1f5f9'/></svg>")
+            };
+
+            const injectPrintBgLayers = useCallback(() => {
+                try {
+                    const hosts = [];
+
+                    const addLayer = (el, src) => {
+                        if (!el || el.querySelector(':scope > img.print-bg-img-layer')) return;
+                        el.classList.add('print-bg-host');
+                        const img = document.createElement('img');
+                        img.className = 'print-bg-img-layer';
+                        img.setAttribute('aria-hidden', 'true');
+                        img.setAttribute('data-print-bg', '1');
+                        img.alt = '';
+                        img.src = src;
+                        el.insertBefore(img, el.firstChild);
+                        hosts.push(el);
+                    };
+
+                    document.querySelectorAll('.bg-blue-50').forEach(el => addLayer(el, PRINT_BG_SVG.blue50));
+                    document.querySelectorAll('.bg-slate-100').forEach(el => addLayer(el, PRINT_BG_SVG.slate100));
+
+                    return hosts;
+                } catch (e) {
+                    return [];
+                }
+            }, []);
+
+            const cleanupPrintBgLayers = useCallback(() => {
+                try {
+                    document.querySelectorAll('img.print-bg-img-layer[data-print-bg="1"]').forEach(img => img.remove());
+                    document.querySelectorAll('.print-bg-host').forEach(el => el.classList.remove('print-bg-host'));
+                } catch (e) { /* ignore */ }
+            }, []);
+
+            // Global vor/nach Print (falls User STRG+P direkt nutzt)
+            useEffect(() => {
+                const bp = () => injectPrintBgLayers();
+                const ap = () => cleanupPrintBgLayers();
+                window.addEventListener('beforeprint', bp);
+                window.addEventListener('afterprint', ap);
+                return () => {
+                    window.removeEventListener('beforeprint', bp);
+                    window.removeEventListener('afterprint', ap);
+                };
+            }, [injectPrintBgLayers, cleanupPrintBgLayers]);
+
             const requestPrint = useCallback((doPrint) => {
                 // Angebotsgültigkeit nur abfragen, wenn mindestens ein Bereich auf "Offen" steht.
                 const hasOpen = (() => {
-                    try { return Object.values(canvasStatus || {}).includes('open'); } catch(e){ return false; }
+                    try {
+                        const keys = ['offer1','offer2','offer3'];
+                        const nonEmpty = keys.filter(k => {
+                            const hasText = !!String(getDisplayText(k) || '').trim();
+                            const hasInk = !!(drawnStrokes && drawnStrokes[k] && drawnStrokes[k].length);
+                            const hasImg = !!(canvasImages && canvasImages[k]);
+                            const hasHtml = !!(k === 'offer1' ? window.__canvasHtmlOffer1 : k === 'offer2' ? window.__canvasHtmlOffer2 : window.__canvasHtmlOffer3);
+                            return hasText || hasInk || hasImg || hasHtml;
+                        });
+                        return nonEmpty.some(k => (canvasStatus && canvasStatus[k]) === 'open');
+                    } catch(e){ return false; }
                 })();
 
                 const hasText = !!String(getDisplayText('OfferValidUntil') || '').trim();
                 const hasInk = !!(drawnStrokes.offer_valid_until && drawnStrokes.offer_valid_until.length);
+
+                // PRINT-HINWEIS (Browser-Setting): Farben/Hintergründe werden nur gedruckt, wenn
+                // im Druckdialog "Hintergrundgrafiken" (bzw. "Hintergrundfarben und -bilder") aktiviert ist.
+                // Der CSS-Fix ist bereits aktiv, aber dieses Häkchen kann die Ausgabe trotzdem überschreiben.
+                try {
+                    if (typeof triggerToast === 'function') {
+                        triggerToast('Tipp (STRG+P): In Chrome/Edge unter „Weitere Einstellungen“ → „Hintergrundgrafiken“ aktivieren, damit Farben/Hintergründe gedruckt werden.');
+                    }
+                } catch(e) { /* ignore */ }
 
                 // Nur wenn "offen" UND noch kein Datum vorhanden -> Modal zeigen
                 if (hasOpen && !hasText && !hasInk) {
@@ -2391,8 +4346,12 @@ const fileInputRef = useRef(null);
                     return;
                 }
 
+                // Wichtig: Layer injizieren, damit blaue/graue Hintergründe sicher gedruckt werden
+                // (auch wenn im Druckdialog "Hintergrundgrafiken" deaktiviert ist).
+                injectPrintBgLayers();
+
                 (typeof doPrint === 'function' ? doPrint : (() => window.print()))();
-            }, [drawnStrokes, getDisplayText, canvasStatus]);
+            }, [drawnStrokes, getDisplayText, canvasStatus, triggerToast, injectPrintBgLayers]);
 
             const downloadPdfBlob = (blob, filename) => {
                 try {
@@ -2455,7 +4414,31 @@ const fileInputRef = useRef(null);
             };
 
 const handleFinishOfferClick = () => {
-                const openKeys = Object.keys(canvasStatus || {}).filter(k => canvasStatus[k] === 'open');
+                // Inhalterkennung: Status nur fuer Bereiche erzwingen, die wirklich Inhalt haben
+                const keys = ['offer1','offer2','offer3'];
+                const nonEmptyKeys = keys.filter(k => {
+                    try {
+                        const hasText = !!String(getDisplayText(k) || '').trim();
+                        const hasInk = !!(drawnStrokes && drawnStrokes[k] && drawnStrokes[k].length);
+                        const hasImg = !!(canvasImages && canvasImages[k]);
+                        const hasHtml = !!(k === 'offer1' ? window.__canvasHtmlOffer1 : k === 'offer2' ? window.__canvasHtmlOffer2 : window.__canvasHtmlOffer3);
+                        return hasText || hasInk || hasImg || hasHtml;
+                    } catch(e) { return false; }
+                });
+
+                const missingStatus = nonEmptyKeys.filter(k => {
+                    const s = (canvasStatus && canvasStatus[k]) || 'neutral';
+                    return !(s === 'open' || s === 'closed');
+                });
+
+                if (missingStatus.length > 0) {
+                    try {
+                        triggerToast('Bitte Status setzen (Offen/Abgeschlossen) fuer: ' + missingStatus.map(k => k.replace('offer','Angebot ')).join(', '));
+                    } catch(e) {}
+                    return;
+                }
+
+                const openKeys = nonEmptyKeys.filter(k => canvasStatus[k] === 'open');
 
                 // Wenn Kunde unterschrieben hat: erst Folgetermine abfragen (falls etwas offen), dann drucken/hochladen
                 if (customerSignature) {
@@ -2756,20 +4739,26 @@ const handleFinishOfferClick = () => {
                 if (cssX == null || cssY == null) return;
 
                 const ctx = canvas.getContext('2d');
-                const currentTool = toolRef.current;
+                const selectedTool = toolRef.current;
+                const pointerTypeNow = e.pointerType;
                 const currentStrokeWidth = strokeWidthRef.current;
                 const currentColor = colorRef.current;
-                const currentOpacity = opacityRef.current;
+                const baseOpacity = opacityRef.current;
+
+                const currentTool = resolveToolForPointer(selectedTool, pointerTypeNow);
+                const tune = getToolTuning(currentTool, currentStrokeWidth, baseOpacity);
+                const currentOpacity = tune.opacity;
                 const strokeBaseWidth = canvas.getBoundingClientRect().width;
+                const strokeBaseHeight = canvas.getBoundingClientRect().height;
                 const zoomLevel = 1.0;
                 const x = cssX / zoomLevel;
                 const y = cssY / zoomLevel;
 
-                const newStroke = { tool: currentTool, color: currentColor, width: currentStrokeWidth, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth };
+                const newStroke = { tool: currentTool, color: currentColor, width: tune.width, opacity: currentOpacity, points: [{ x, y }], baseWidth: strokeBaseWidth, baseHeight: strokeBaseHeight };
 
                 ctx.save();
                 const isOfferType = key.startsWith('offer');
-                const rawStrokeW = currentStrokeWidth;
+                const rawStrokeW = tune.width;
                 let visualBaseW;
                 if (isOfferType) { visualBaseW = rawStrokeW === 2 ? 2.5 : rawStrokeW === 4 ? 5 : 8; }
                 else { visualBaseW = rawStrokeW === 2 ? 2 : rawStrokeW === 4 ? 3 : 5; }
@@ -2870,7 +4859,97 @@ const handleFinishOfferClick = () => {
 
 const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val / total) * 100 : 0; return (<div className="h-1.5 w-full bg-slate-100 rounded-full mt-1 overflow-hidden"><div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }}></div></div>); };
             const toggleTech = (val) => setShowTechModal(val);
-            const penTools = [{ id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' }, { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' }, { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' }];
+                        const penModes = [
+  { id: 'pen', Icon: ICONS.Pen, c: 'bg-blue-100 text-blue-600', title: 'Stift' },
+  { id: 'fountain', Icon: ICONS.Fountain, c: 'bg-indigo-100 text-indigo-600', title: 'Füller' },
+  { id: 'ballpen', Icon: ICONS.Ballpen, c: 'bg-slate-100 text-slate-700', title: 'Kugelschreiber' },
+];
+const otherTools = [
+  { id: 'highlighter', Icon: ICONS.Highlighter, c: 'bg-yellow-100 text-yellow-600', title: 'Textmarker' },
+  { id: 'eraser', Icon: ICONS.EraserLine, c: 'bg-slate-100 text-slate-600', title: 'Radierer' },
+];
+
+const isPenMode = (t) => (t === 'pen' || t === 'fountain' || t === 'ballpen');
+
+const getPenBtnStyle = () => {
+  if (tool === 'fountain') return 'bg-indigo-100 text-indigo-600';
+  if (tool === 'ballpen') return 'bg-slate-100 text-slate-700';
+  return 'bg-blue-100 text-blue-600'; // pen default
+};
+
+const handlePenButtonClick = () => {
+  const now = Date.now();
+  const dt = now - (lastPenTapRef.current || 0);
+  lastPenTapRef.current = now;
+
+  // Double-tap: open/close picker (like color palette)
+  if (dt > 0 && dt < 350) {
+    setShowPenToolPicker(v => !v);
+    return;
+  }
+
+  // Single tap: just select default pen and close picker
+  setTool('pen');
+  setShowPenToolPicker(false);
+};
+
+// Close picker on outside click
+useEffect(() => {
+  if (!showPenToolPicker) return;
+  const onDown = (e) => {
+    const host = e.target?.closest?.('.pen-tool-picker-host');
+    if (!host) setShowPenToolPicker(false);
+  };
+  window.addEventListener('pointerdown', onDown, { capture: true });
+  return () => window.removeEventListener('pointerdown', onDown, { capture: true });
+}, [showPenToolPicker]);
+
+const renderPenToolButtons = () => (
+  <>
+    <div className="relative pen-tool-picker-host">
+      <button
+        onClick={handlePenButtonClick}
+        className={`p-2 rounded-md ${isPenMode(tool) ? getPenBtnStyle() : 'text-slate-400 hover:bg-slate-50'}`}
+        title="Stift (Doppeltipp = Auswahl)"
+      >
+        <Icon d={tool === 'fountain' ? ICONS.Fountain : tool === 'ballpen' ? ICONS.Ballpen : ICONS.Pen} size={16} />
+      </button>
+
+      {showPenToolPicker && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-3 gap-2 w-[240px] z-[120]">
+          <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">
+            Stift wählen
+          </div>
+          {penModes.map(pm => (
+            <button
+              key={pm.id}
+              onClick={() => { setTool(pm.id); setShowPenToolPicker(false); }}
+              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border ${tool === pm.id ? 'border-slate-300 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
+              title={pm.title}
+            >
+              <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${pm.c}`}>
+                <Icon d={pm.Icon} size={18} />
+              </span>
+              <span className="text-[10px] font-extrabold text-slate-700">{pm.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {otherTools.map(t => (
+      <button
+        key={t.id}
+        onClick={() => { setTool(t.id); setShowPenToolPicker(false); }}
+        className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`}
+        title={t.title}
+      >
+        <Icon d={t.Icon} size={16} />
+      </button>
+    ))}
+  </>
+);
+
             const handleOfferCostChange = (key, value) => {
                 try { if (inputMode === 'keyboard') { digitalTouchedRef.current[`cost_${key}`] = true; } } catch(e){}
                 const cleanValue = value.replace(',', '.');
@@ -2878,7 +4957,7 @@ const CostBar = ({ val, total, colorClass }) => { const pct = total > 0 ? (val /
                 const rawKey = `${key}Raw`;
                 setOfferData(prev => ({ ...prev, [rawKey]: value, [key]: isNaN(val) || value.trim() === '' ? 0 : val }));
             };
-            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? ''; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } else if (key === 'gueltig') { ref = offerValidUntilRef; rawValue = getDisplayText('OfferValidUntil'); strokesKey = 'offer_valid_until'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } else if (key === 'gueltig') { handleTextChange('OfferValidUntil', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing}/>) : (() => { const showDigital = !!digitalTouchedRef.current[strokesKey]; const displayValue = showDigital ? rawValue : ''; const hasInk = !!(drawnStrokes[strokesKey] && drawnStrokes[strokesKey].length); if (!showDigital && hasInk) { return (<canvas ref={ref} className="absolute inset-0 w-full h-full drawing-canvas" style={{ pointerEvents: 'none', touchAction: 'none', background: 'transparent' }} />); } return (<input type={type} value={displayValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full px-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'offer-cost-input text-xl font-black text-slate-800 bg-transparent' : 'offer-meta-input text-slate-700 bg-transparent'}`}/>); })()}</div></div>); };
+            const renderOfferInput = (key, labelKey, type = 'text') => { let ref, rawValue, strokesKey; const label = getStaticLabel(labelKey); if (key === 'einmalig' || key === 'monatlich1' || key === 'monatlich2') { ref = (key === 'einmalig' ? offerCost1Ref : key === 'monatlich1' ? offerCost2Ref : offerCost3Ref); rawValue = offerData[`${key}Raw`] ?? ''; strokesKey = `cost_${key}`; } else if (key === 'agent') { ref = offerAgentRef; rawValue = getDisplayText('AgentName'); strokesKey = 'agent_name'; } else if (key === 'datum') { ref = offerDateRef; rawValue = getDisplayText('DateValue'); strokesKey = 'date_field'; } else if (key === 'gueltig') { ref = offerValidUntilRef; rawValue = getDisplayText('OfferValidUntil'); strokesKey = 'offer_valid_until'; } const isCostField = key.startsWith('monatlich') || key === 'einmalig'; const handleChange = (e) => { if (isCostField) { handleOfferCostChange(key, e.target.value); } else if (key === 'agent') { handleTextChange('AgentName', e.target.value); } else if (key === 'datum') { handleTextChange('DateValue', e.target.value); } else if (key === 'gueltig') { handleTextChange('OfferValidUntil', e.target.value); } }; const inputHeightClass = 'h-12'; return (<div className="flex flex-col"><label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label><div className={`relative ${inputHeightClass} ${isCostField ? 'bg-slate-50' : 'bg-white'} border border-slate-300 rounded-lg`}>{inputMode === 'pen' ? (<SmallInputCanvas inputMode={inputMode} canvasRef={ref} inputKey={strokesKey} inputValue={rawValue} placeholder={label.split(' ')[0]} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} triggerRedraw={redrawCounter}/>) : (() => { const showDigital = !!digitalTouchedRef.current[strokesKey]; const displayValue = showDigital ? rawValue : ''; const hasInk = !!(drawnStrokes[strokesKey] && drawnStrokes[strokesKey].length); if (!showDigital && hasInk) { return (<canvas ref={ref} className="absolute inset-0 w-full h-full drawing-canvas" style={{ pointerEvents: 'none', touchAction: 'none', background: 'transparent' }} />); } return (<input type={type} value={displayValue} onChange={handleChange} placeholder={label.split(' ')[0]} className={`w-full h-full px-3 text-base font-medium focus:ring-1 focus:ring-blue-300 transition-colors focus:outline-none ${isCostField ? 'offer-cost-input text-xl font-black text-slate-800 bg-transparent' : 'offer-meta-input text-slate-700 bg-transparent'}`}/>); })()}</div></div>); };
             
             const handleLocalTranslation = useCallback((targetCode) => { if (targetCode === 'de') return; const mockData = MOCK_TRANSLATIONS[targetCode]; if (mockData) { const newTranslatedText = {}; const newStaticTranslations = {}; Object.keys(STATIC_LABELS).forEach(key => { if (mockData[key]) { newStaticTranslations[key] = mockData[key]; } }); Object.keys(textData).forEach(key => { if (mockData[key]) { newTranslatedText[key] = mockData[key]; } }); setTranslatedText(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newTranslatedText } })); setStaticTranslations(prev => ({ ...prev, [targetCode]: { ...(prev[targetCode] || {}), ...newStaticTranslations } })); if (mockData.AgentName) handleTextChange('AgentName', mockData.AgentName); if (mockData.DateValue) handleTextChange('DateValue', mockData.DateValue); triggerToast(`Lokale (Mock) Übersetzung geladen: ${targetCode.toUpperCase()}.`); } else { triggerToast(`Für ${targetCode.toUpperCase()} ist keine lokale Mock-Übersetzung verfügbar. Standard-Deutsch wird verwendet.`); } }, [triggerToast, textData, handleTextChange]); 
             useEffect(() => { if (displayLanguage !== 'de') { if (!staticTranslations[displayLanguage] || !translatedText[displayLanguage]) { handleLocalTranslation(displayLanguage); } } }, [displayLanguage, handleLocalTranslation, translatedText, staticTranslations]);
@@ -2919,7 +4998,21 @@ const SHARE_OFFSET_Y_PX  = 0; // Share: keep at 0 (prevents page-cut) // Share: 
     doc.close();
 
     // Share-PDF: eigener Modus im Iframe
-    try { doc.body.classList.add('pdf-share-mode'); } catch(e){}
+    try { doc.body.classList.add('pdf-share-mode');
+                    // Hide voucher / Gutscheincode area during export (prevents it showing in screenshot/PDF)
+                    try {
+                        const txt = (el) => (el && (el.textContent || el.innerText) || '').toLowerCase();
+                        const all = Array.from(clonedDoc.querySelectorAll('div,section,article,p,span,strong,small,label,h1,h2,h3,h4'));
+                        const hit = all.find(n => txt(n).includes('gutscheincode') || txt(n).includes('gutschein'));
+                        if (hit) {
+                            // hide nearest "row/card/section" container
+                            const box = hit.closest('section, article, .card, .rounded-xl, .border, .p-4, .p-6, div') || hit;
+                            box.style.display = 'none';
+                        }
+                    } catch(e){}
+                    // Force exact colors inside clone
+                    try { clonedDoc.querySelectorAll('*').forEach(el => { el.style.webkitPrintColorAdjust='exact'; el.style.printColorAdjust='exact'; }); } catch(e){}
+ } catch(e){}
 
     // Styles kopieren und Print-Regeln immer aktiv machen
     const styles = Array.from(document.querySelectorAll('style'))
@@ -3353,7 +5446,7 @@ if (addPageNumbers) {
         margin: 0,
         filename: `Angebot_HIDA_${new Date().toISOString().split('T')[0]}.pdf`,
         pagebreak: { mode: ['css', 'legacy'] },
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1.0 },
         html2canvas: {
             scale: 2,
             useCORS: true,
@@ -3397,6 +5490,7 @@ if (addPageNumbers) {
         const blob = await window.html2pdf().set(opt).from(doc.body).outputPdf('blob');
         return blob;
     } finally {
+        try { document.body.classList.remove('exporting'); } catch(e){}
         try { document.body.removeChild(iframe); } catch(e){}
         try { document.querySelectorAll('.print-page-header').forEach(el => el.remove()); } catch(e){}
     }
@@ -3528,6 +5622,7 @@ const handlePDFShare = async () => {
             return;
         }
 
+        document.body.classList.add('exporting');
         showOverlay('PDF wird erstellt...');
         showOverlay('PDF wird gerendert...');
 
@@ -3622,7 +5717,7 @@ const handlePDFShare = async () => {
                     />
 
 
-                    <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} /> <BundleModal isOpen={showBundleModal} onClose={() => setShowBundleModal(false)} url={bundleModalUrl} onImportToCanvas={importBundleToCanva1} triggerToast={triggerToast} />
+                    <SkipReasonModal isOpen={showSkipReasonModal} onClose={() => setShowSkipReasonModal(false)} onConfirm={handleSkipToOffer} reason={skipReason} setReason={setSkipReason} reasonMode={skipReasonMode} setReasonMode={setSkipReasonMode} drawnStrokes={drawnStrokes} setDrawnStrokes={setDrawnStrokes} canvasRef={skipReasonCanvasRef} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} MIN_LENGTH={MIN_REASON_LENGTH} /> <BundleModal isOpen={showBundleModal} onClose={() => setShowBundleModal(false)} url={bundleModalUrl} onImportToCanvas={importBundleToCanvas} triggerToast={triggerToast} targetKey={bundleTargetKey} />
 <AdminModal isOpen={showAdmin} onClose={()=>setShowAdmin(false)} questions={questionsData} onUpdate={handleUpdateQuestions} oneDriveLink={oneDriveLink} onUpdateLink={setOneDriveLink} />
                     <StatsModal isOpen={showStats} onClose={()=>setShowStats(false)} />
                     
@@ -3713,8 +5808,15 @@ const handlePDFShare = async () => {
 
                     <div className={`flex-1 w-full relative bg-[#f0f6ff] ${view === 'offer' ? 'flex overflow-y-auto' : 'hidden'} print-offer-view`}>
                         <div className="w-full flex-1 flex flex-col space-y-6 min-h-0 p-4 md:p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full offer-print-grid"> 
-                                {[{ key: 'offer1', icon: ICONS.Smartphone, labelKey: 'Offer1Title', ref: offerCanvasRef1, scaleRef: scaleRef1 }, { key: 'offer2', icon: ICONS.Users, labelKey: 'Offer2Title', ref: offerCanvasRef2, scaleRef: scaleRef2 }, { key: 'offer3', icon: ICONS.Router, labelKey: 'Offer3Title', ref: offerCanvasRef3, scaleRef: scaleRef3 }].map(({ key, icon, labelKey, ref, scaleRef }) => (<OfferCanvas key={key} canvasRef={ref} icon={icon} label={getStaticLabel(labelKey)} statusKey={key} status={canvasStatus[key]} setStatus={setCanvasStatus} followUpInfo={followUpsByKey[key]} inputMode={inputMode} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} textValue={getDisplayText(key)} handleTextChange={handleTextChange} textStyle={textStyle} textSize={textSize} imageTransform={imageTransform[key]} onUpdateImageTransform={handleUpdateImageTransform} drawnStrokes={drawnStrokes[key]} setDrawnStrokes={(newStrokes) => setDrawnStrokes(prev => ({ ...prev, [key]: newStrokes }))} scaleRef={scaleRef} triggerRedraw={redrawCounter} image={canvasImages[key]} onClearImage={() => handleClearImage(key)} onOpenBundleModal={openBundleModal} />))}
+                            <div className="flex flex-col gap-6 w-full md:grid md:grid-cols-3 offer-print-grid"> 
+                                {[{ key: 'offer1', icon: ICONS.Smartphone, labelKey: 'Offer1Title', ref: offerCanvasRef1, scaleRef: scaleRef1 }, { key: 'offer2', icon: ICONS.Users, labelKey: 'Offer2Title', ref: offerCanvasRef2, scaleRef: scaleRef2 }, { key: 'offer3', icon: ICONS.Router, labelKey: 'Offer3Title', ref: offerCanvasRef3, scaleRef: scaleRef3 }].map(({ key, icon, labelKey, ref, scaleRef }) => {
+                                    const orderClass = key === 'offer1' ? 'order-1' : key === 'offer2' ? 'order-2' : 'order-3';
+                                    return (
+                                        <div className={orderClass}>
+                                            <OfferCanvas key={key} canvasRef={ref} icon={icon} label={getStaticLabel(labelKey)} statusKey={key} status={canvasStatus[key]} setStatus={setCanvasStatus} followUpInfo={followUpsByKey[key]} inputMode={inputMode} startDrawing={startDrawing} draw={draw} stopDrawing={stopDrawing} textValue={getDisplayText(key)} handleTextChange={handleTextChange} textStyle={textStyle} textSize={textSize} imageTransform={imageTransform[key]} onUpdateImageTransform={handleUpdateImageTransform} drawnStrokes={drawnStrokes[key]} setDrawnStrokes={(newStrokes) => setDrawnStrokes(prev => ({ ...prev, [key]: newStrokes }))} scaleRef={scaleRef} triggerRedraw={redrawCounter} image={canvasImages[key]} onClearImage={() => handleClearImage(key)} onClearOverlay={() => handleClearOverlay(key)} onOpenBundleModal={openBundleModal} triggerToast={triggerToast} />
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl shrink-0 cost-overview-print">
@@ -3774,10 +5876,10 @@ const handlePDFShare = async () => {
                     </div>
 
                     <div className="h-14 bg-[#f0f6ff] border-t border-slate-200 flex items-center px-4 shrink-0 z-40 justify-between shadow-sm relative w-full footer-bar">
-                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
+                        {view === 'situation' ? (<><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{renderPenToolButtons()}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-2">
                             <button onClick={() => setShowSkipReasonModal(true)} className="px-4 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors">Überspringen</button>
                             <button onClick={() => isFormValid && setView('offer')} className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${isFormValid ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} title={isFormValid ? "Weiter zum Angebot" : "Bitte Pflichtfelder ausfüllen (Kundentyp, Segment, Anbieter)"}>Zum Angebot <Icon d={ICONS.ArrowRight} size={18} /></button>
-                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{penTools.map(t => (<button key={t.id} onClick={() => setTool(t.id)} className={`p-2 rounded-md ${tool === t.id ? t.c : 'text-slate-400 hover:bg-slate-50'}`} title={t.title}><Icon d={t.Icon} size={16} /></button>))}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} disabled={!isReadyToFinish}  className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${
+                        </div></>) : (<div className="w-full flex justify-between items-center"><div className="flex items-center gap-3"><div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm"><button onClick={() => setInputMode('pen')} className={`p-2 rounded-md transition-colors ${inputMode === 'pen' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Stift-Modus (Stylus Only)"><Icon d={ICONS.Pen} size={16} /></button><button onClick={() => setInputMode('keyboard')} className={`p-2 rounded-md transition-colors ${inputMode === 'keyboard' ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`} title="Tastatur-Modus"><Icon d={ICONS.Keyboard} size={16} /></button></div>{inputMode === 'pen' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50">{renderPenToolButtons()}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5">{STROKE_SIZES.map(s => (<button key={s.id} onClick={() => setStrokeWidth(s.width)} className={`w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200 ${strokeWidth === s.width ? 'bg-slate-200 shadow-inner' : ''}`}><div className="bg-slate-600 rounded-full" style={{ width: s.id * 3, height: s.id * 3 }}></div></button>))}</div>{(tool === 'pen' || tool === 'highlighter') && (<div className="flex items-center gap-2 bg-slate-50 rounded border border-slate-200 p-1.5 ml-2"><Icon d={ICONS.Sun} size={16} className="text-slate-400"/><input type="range" min="10" max="100" value={Math.round(opacity * 100)} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-20 h-1 appearance-none bg-blue-200 rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" title={`Deckkraft: ${Math.round(opacity * 100)}%`}/></div>)}<div className="w-px h-6 bg-slate-200 mx-1"></div><div className="relative"><button onClick={() => setShowColorPicker(!showColorPicker)} className="w-8 h-8 rounded-full border shadow-sm flex items-center justify-center ring-offset-2 focus:ring-2" style={{ backgroundColor: color }}><Icon d={ICONS.Palette} size={12} className="text-white mix-blend-difference" /></button>{showColorPicker && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-[180px] z-[100]"><div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1">Farbe wählen</div>{COLORS.map(c => <button key={c.id} onClick={() => { setColor(c.value); setShowColorPicker(false); }} className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c.value ? 'border-slate-400 shadow-inner scale-110' : 'border-transparent'}`} style={{ backgroundColor: c.value }} title={c.label} />)}</div>)}</div></div>)}{inputMode === 'keyboard' && (<div className="flex gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm animate-in items-center relative z-50"><div className="flex bg-slate-50 rounded border border-slate-200 p-0.5 gap-0.5"><button onClick={() => setTextSize('small')} className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${textSize === 'small' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('medium')} className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${textSize === 'medium' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button><button onClick={() => setTextSize('large')} className={`w-8 h-8 flex items-center justify-center rounded text-lg font-bold ${textSize === 'large' ? 'bg-white shadow text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-200'}`}>A</button></div><div className="w-px h-6 bg-slate-200 mx-1"></div><div className="flex gap-1"><button onClick={() => setTextStyle(p => ({...p, bold: !p.bold}))} className={`w-8 h-8 rounded flex items-center justify-center font-black transition-colors ${textStyle.bold ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Fett"><Icon d={ICONS.Bold} size={16}/></button><button onClick={() => setTextStyle(p => ({...p, italic: !p.italic}))} className={`w-8 h-8 rounded flex items-center justify-center italic font-serif transition-colors ${textStyle.italic ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-200' : 'text-slate-500 hover:bg-slate-100'}`} title="Kursiv"><Icon d={ICONS.Italic} size={16}/></button></div></div>)}</div><div className="flex items-center gap-4"><button onClick={handleFileAdd} className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors" title="Datei hinzufügen (Kamera / Ordner)"><Icon d={ICONS.Folder} size={18}/></button><div className="relative"><button onClick={() => setShowLanguageDropdown(p => !p)} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors" title={`Sprache: ${SORTED_LANGUAGES.find(l => l.code === displayLanguage)?.name || 'Deutsch'}`}><div className="relative flex items-center justify-center"><Icon d={ICONS.Globe} size={18} className="text-slate-500"/>{displayLanguage !== 'de' && (<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black text-white mix-blend-difference leading-none pointer-events-none">{displayLanguage.toUpperCase()}</span>)}</div></button>{showLanguageDropdown && (<div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in"><div className="p-2 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Sprache wählen</div>{SORTED_LANGUAGES.map(lang => (<button key={lang.code} onClick={() => { setDisplayLanguage(lang.code); setShowLanguageDropdown(false); }} className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${displayLanguage === lang.code ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>{lang.name}{displayLanguage === lang.code && <Icon d={ICONS.CheckCircle} size={14} className="ml-auto"/>}</button>))}</div>)}</div><div className="flex items-center">{showShareButton && (<button onClick={handlePDFShare} className="p-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-100 text-blue-600 transition-colors mr-2 flex items-center justify-center w-10 h-10" title="Angebot teilen (System)"><Icon d={ICONS.Share} size={20} className="w-5 h-5" /></button>)}<button onClick={openOneDriveLink} className="p-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition-colors mr-2 flex items-center justify-center" title="Link zur Aktionsmappe (Buch)"><Icon d={ICONS.Book} size={18}/> </button><button onClick={() => setView('situation')} className="px-6 py-2 text-slate-500 font-bold text-xs hover:bg-slate-100 rounded-lg transition-colors mr-2 flex items-center gap-1"><Icon d={ICONS.ArrowLeft} size={14}/> Zurück</button><button onClick={handleFinishOfferClick} disabled={!isReadyToFinish}  className={`px-6 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-2 transition-all ${
                     (!isReadyToFinish)
                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         : (customerSignature ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-green-600 hover:bg-green-700')
@@ -3818,7 +5920,63 @@ const handlePDFShare = async () => {
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
+      // === v24: Bundle-Laufzeit Dropdown/Badge sichtbar machen (Tailwind-Klassen fehlen im Pencil-Selling) ===
+      (function(){
+        function fixTermSelectStyles(scope){
+          try{
+            scope = scope || document;
+            const nodes = Array.from(scope.querySelectorAll('select,button,div,span'));
+            const candidates = nodes.filter(el=>{
+              const txt = (el.innerText || '').trim();
+              if (/^(24|36)\s*Monate\b/i.test(txt)) return true;
+              if (el.tagName === 'SELECT'){
+                const opts = Array.from(el.options || []);
+                return opts.some(o => /Monat/i.test((o.textContent||'')));
+              }
+              return false;
+            });
+
+            candidates.forEach(el=>{
+              // Grundsätzlich lesbar machen
+              el.style.color = '#fff';
+              el.style.textShadow = '0 1px 0 rgba(0,0,0,0.12)';
+
+              // Für echte Controls: pill-style
+              if (el.tagName === 'SELECT' || el.tagName === 'BUTTON'){
+                el.style.background = 'rgba(255,255,255,0.14)';
+                el.style.border = '1px solid rgba(255,255,255,0.75)';
+                el.style.borderRadius = '999px';
+                el.style.padding = '6px 10px';
+                el.style.fontWeight = '700';
+                el.style.fontSize = '12px';
+                el.style.lineHeight = '1';
+                el.style.outline = 'none';
+                el.style.webkitAppearance = 'none';
+                el.style.appearance = 'none';
+              } else {
+                el.style.fontWeight = '700';
+              }
+            });
+          }catch(e){/* ignore */}
+        }
+
+        const obs = new MutationObserver(muts=>{
+          for(const m of muts){
+            for(const n of m.addedNodes){
+              if(n && n.nodeType===1){
+                fixTermSelectStyles(n);
+              }
+            }
+          }
+        });
+
+        window.addEventListener('DOMContentLoaded', ()=>{
+          fixTermSelectStyles(document);
+          obs.observe(document.body, {subtree:true, childList:true});
+        });
+      })();
+
     </script>
 </body>
 </html>
-
